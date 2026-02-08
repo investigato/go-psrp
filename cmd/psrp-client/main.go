@@ -1008,12 +1008,7 @@ func formatObject(v interface{}) string {
 	}
 	switch val := v.(type) {
 	case string:
-		// Decode XML-encoded CRLF (from PowerShell/CLIXML) for cleaner display
-		result := val
-		result = strings.ReplaceAll(result, "_x000D__x000A_", "\n")
-		result = strings.ReplaceAll(result, "_x000D_", "\r")
-		result = strings.ReplaceAll(result, "_x000A_", "\n")
-		return result
+		return val
 	case *serialization.PSObject:
 		// For PSObjects, use ToString if available, otherwise format properties
 		if val.ToString != "" {
