@@ -2256,6 +2256,14 @@ func (c *Client) runPipelineReceive(ctx context.Context, transport io.Reader, pl
 		// Parse blob length from last 4 bytes (big-endian)
 		blobLen := int(header[17])<<24 | int(header[18])<<16 | int(header[19])<<8 | int(header[20])
 
+		// Guard against oversized or negative blob lengths (CWE-400).
+		// MS-PSRP fragments are typically well under 1 MB; 10 MB is a generous upper bound.
+		const maxFragmentBlobLen = 10 * 1024 * 1024 // 10 MB
+		if blobLen < 0 || blobLen > maxFragmentBlobLen {
+			pl.Fail(fmt.Errorf("fragment blob length %d exceeds maximum allowed size (%d)", blobLen, maxFragmentBlobLen))
+			return
+		}
+
 		// Read blob data
 		var blob []byte
 		if blobLen > 0 {

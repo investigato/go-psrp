@@ -266,7 +266,12 @@ func authenticateWithBroker(conn net.Conn, domain, user, pass, configName string
 			debugf("Received token response: [REDACTED len=%d]", len(tokenResp))
 
 		if !strings.HasPrefix(tokenResp, "TOKEN ") {
-			return "", fmt.Errorf("expected token, got: %q", tokenResp)
+			// Truncate unexpected response to avoid leaking sensitive data in logs (CWE-209).
+			preview := tokenResp
+			if len(preview) > 64 {
+				preview = preview[:64] + "..."
+			}
+			return "", fmt.Errorf("expected token, got: %q", preview)
 		}
 
 		token := strings.TrimPrefix(tokenResp, "TOKEN ")
