@@ -384,7 +384,6 @@ func (c *Client) CopyFile(ctx context.Context, localPath, remotePath string, opt
 	return nil
 }
 
-
 // copyFileStreaming uploads a file using a single streaming pipeline.
 // This is more efficient than chunked uploads as it avoids per-chunk overhead (pipeline creation).
 // It streams file chunks as pipeline input to a script that writes them to the destination.
@@ -432,13 +431,41 @@ func (c *Client) copyFileStreaming(ctx context.Context, file *os.File, remotePat
 		defer close(doneDrain)
 		var wg sync.WaitGroup
 		wg.Add(7)
-		go func() { defer wg.Done(); for range sr.Output {} }()
-		go func() { defer wg.Done(); for range sr.Errors {} }()
-		go func() { defer wg.Done(); for range sr.Warnings {} }()
-		go func() { defer wg.Done(); for range sr.Verbose {} }()
-		go func() { defer wg.Done(); for range sr.Debug {} }()
-		go func() { defer wg.Done(); for range sr.Progress {} }()
-		go func() { defer wg.Done(); for range sr.Information {} }()
+		go func() {
+			defer wg.Done()
+			for range sr.Output {
+			}
+		}()
+		go func() {
+			defer wg.Done()
+			for range sr.Errors {
+			}
+		}()
+		go func() {
+			defer wg.Done()
+			for range sr.Warnings {
+			}
+		}()
+		go func() {
+			defer wg.Done()
+			for range sr.Verbose {
+			}
+		}()
+		go func() {
+			defer wg.Done()
+			for range sr.Debug {
+			}
+		}()
+		go func() {
+			defer wg.Done()
+			for range sr.Progress {
+			}
+		}()
+		go func() {
+			defer wg.Done()
+			for range sr.Information {
+			}
+		}()
 		wg.Wait()
 	}()
 
@@ -919,12 +946,36 @@ func (c *Client) copyFileParallelHvSocket(ctx context.Context, file *os.File, re
 			go func() {
 				var wg sync.WaitGroup
 				wg.Add(6)
-				go func() { defer wg.Done(); for range sr.Output {} }()
-				go func() { defer wg.Done(); for range sr.Errors {} }()
-				go func() { defer wg.Done(); for range sr.Verbose {} }()
-				go func() { defer wg.Done(); for range sr.Debug {} }()
-				go func() { defer wg.Done(); for range sr.Progress {} }()
-				go func() { defer wg.Done(); for range sr.Information {} }()
+				go func() {
+					defer wg.Done()
+					for range sr.Output {
+					}
+				}()
+				go func() {
+					defer wg.Done()
+					for range sr.Errors {
+					}
+				}()
+				go func() {
+					defer wg.Done()
+					for range sr.Verbose {
+					}
+				}()
+				go func() {
+					defer wg.Done()
+					for range sr.Debug {
+					}
+				}()
+				go func() {
+					defer wg.Done()
+					for range sr.Progress {
+					}
+				}()
+				go func() {
+					defer wg.Done()
+					for range sr.Information {
+					}
+				}()
 				wg.Wait()
 			}()
 
