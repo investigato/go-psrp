@@ -423,24 +423,23 @@ func (c *Client) copyFileStreaming(ctx context.Context, file *os.File, remotePat
 	if err != nil {
 		return fmt.Errorf("start stream: %w", err)
 	}
-	// Drain output channels to avoid blocking the pipeline on unread streams.
+	// Drain all output channels concurrently to prevent back-pressure.
+	// Sequential draining blocks on earlier channels (e.g. Output) while later
+	// channels (e.g. Progress) fill up, causing HandleMessage buffer timeouts
+	// that kill the pipeline.
 	doneDrain := make(chan struct{})
 	go func() {
 		defer close(doneDrain)
-		for range sr.Output {
-		}
-		for range sr.Errors {
-		}
-		for range sr.Warnings {
-		}
-		for range sr.Verbose {
-		}
-		for range sr.Debug {
-		}
-		for range sr.Progress {
-		}
-		for range sr.Information {
-		}
+		var wg sync.WaitGroup
+		wg.Add(7)
+		go func() { defer wg.Done(); for range sr.Output {} }()
+		go func() { defer wg.Done(); for range sr.Errors {} }()
+		go func() { defer wg.Done(); for range sr.Warnings {} }()
+		go func() { defer wg.Done(); for range sr.Verbose {} }()
+		go func() { defer wg.Done(); for range sr.Debug {} }()
+		go func() { defer wg.Done(); for range sr.Progress {} }()
+		go func() { defer wg.Done(); for range sr.Information {} }()
+		wg.Wait()
 	}()
 
 	// Prepare hasher if verification enabled
@@ -913,20 +912,20 @@ func (c *Client) copyFileParallelHvSocket(ctx context.Context, file *os.File, re
 				return fmt.Errorf("worker %d start stream failed: %w", workerIndex, err)
 			}
 
-			// Output drainer (prevent blocking)
+			// Drain all output channels concurrently to prevent back-pressure.
+			// Sequential draining blocks on earlier channels (e.g. Output) while
+			// later channels (e.g. Progress) fill up, causing HandleMessage
+			// buffer timeouts that kill the pipeline.
 			go func() {
-				for range sr.Output {
-				}
-				for range sr.Errors {
-				}
-				for range sr.Verbose {
-				}
-				for range sr.Debug {
-				}
-				for range sr.Progress {
-				}
-				for range sr.Information {
-				}
+				var wg sync.WaitGroup
+				wg.Add(6)
+				go func() { defer wg.Done(); for range sr.Output {} }()
+				go func() { defer wg.Done(); for range sr.Errors {} }()
+				go func() { defer wg.Done(); for range sr.Verbose {} }()
+				go func() { defer wg.Done(); for range sr.Debug {} }()
+				go func() { defer wg.Done(); for range sr.Progress {} }()
+				go func() { defer wg.Done(); for range sr.Information {} }()
+				wg.Wait()
 			}()
 
 			// Send Loop
@@ -977,7 +976,13 @@ func (c *Client) copyFileParallelHvSocket(ctx context.Context, file *os.File, re
 			}()
 
 			if errSend != nil {
-				sr.Cancel()
+				// Always call Wait() to capture the actual server-side error
+				// and release resources (semaphore). SendInput may fail with
+				// "state=Failed" but the root cause is in the pipeline error.
+				waitErr := sr.Wait()
+				if waitErr != nil {
+					return fmt.Errorf("worker %d send failed: %w (server: %v)", workerIndex, errSend, waitErr)
+				}
 				return errSend
 			}
 
