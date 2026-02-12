@@ -226,65 +226,73 @@ func main() {
 	// Check for Kerberos cred cache first (SSO)
 	var pass string
 
-	// Auto-detect Kerberos cache on macOS if -kerberos is set and no cache specified
+	// Auto-detect Kerberos cache if -kerberos is set and no cache specified
 	detectedCache := *ccache
 	if *useKerberos && detectedCache == "" && os.Getenv("KRB5CCNAME") == "" {
-		// Try to detect macOS API cache using klist -l
-		out, err := exec.Command("klist", "-l").Output()
-		if err == nil {
-			lines := strings.Split(string(out), "\n")
-			var bestCache string
-
-			for _, line := range lines {
-				// Skip headers and empty lines
-				if !strings.Contains(line, "API:") {
-					continue
-				}
-
-				// Check if this line is the active cache (starts with *)
-				isActive := strings.TrimSpace(line)[0] == '*'
-
-				// Parse fields to find API: identifier
-				fields := strings.Fields(line)
-				var apiCache string
-				for _, f := range fields {
-					if strings.HasPrefix(f, "API:") {
-						apiCache = f
-						break
-					}
-				}
-
-				if apiCache == "" {
-					continue
-				}
-
-				// If active, this is the one we want absolutely.
-				if isActive {
-					bestCache = apiCache
-					break
-				}
-
-				// Otherwise, if we haven't found a best one yet, keeping looking,
-				// but check if it's expired.
-				if bestCache == "" && !strings.Contains(line, ">>> Expired <<<") {
-					bestCache = apiCache
-				}
-			}
-			detectedCache = bestCache
+		// 1. Try default file-based cache (Linux convention: /tmp/krb5cc_<uid>)
+		defaultCache := fmt.Sprintf("/tmp/krb5cc_%d", os.Getuid())
+		if _, err := os.Stat(defaultCache); err == nil {
+			detectedCache = defaultCache
 		}
 
-		// If we found an API: cache, export it to a temp file (gokrb5 can't read API caches)
-		if strings.HasPrefix(detectedCache, "API:") {
-			tempCache := fmt.Sprintf("/tmp/psrp_krb5cc_%d", os.Getpid())
-			// Use kcc copy to copy credentials from API cache to file cache (Heimdal command)
-			// Security: detectedCache comes from parsing local 'klist' output, which is considered a trusted source.
-			// #nosec G204 -- klist output is system-generated and trusted for local user context
-			cmd := exec.Command("kcc", "copy", detectedCache, tempCache)
-			if err := cmd.Run(); err == nil {
-				detectedCache = tempCache
-			} else {
-				// kcc not available, can't use API cache with gokrb5
-				detectedCache = ""
+		// 2. Fall back to macOS API cache detection via klist -l
+		if detectedCache == "" {
+			out, err := exec.Command("klist", "-l").Output()
+			if err == nil {
+				lines := strings.Split(string(out), "\n")
+				var bestCache string
+
+				for _, line := range lines {
+					// Skip headers and empty lines
+					if !strings.Contains(line, "API:") {
+						continue
+					}
+
+					// Check if this line is the active cache (starts with *)
+					isActive := strings.TrimSpace(line)[0] == '*'
+
+					// Parse fields to find API: identifier
+					fields := strings.Fields(line)
+					var apiCache string
+					for _, f := range fields {
+						if strings.HasPrefix(f, "API:") {
+							apiCache = f
+							break
+						}
+					}
+
+					if apiCache == "" {
+						continue
+					}
+
+					// If active, this is the one we want absolutely.
+					if isActive {
+						bestCache = apiCache
+						break
+					}
+
+					// Otherwise, if we haven't found a best one yet, keeping looking,
+					// but check if it's expired.
+					if bestCache == "" && !strings.Contains(line, ">>> Expired <<<") {
+						bestCache = apiCache
+					}
+				}
+				detectedCache = bestCache
+			}
+
+			// If we found an API: cache, export it to a temp file (gokrb5 can't read API caches)
+			if strings.HasPrefix(detectedCache, "API:") {
+				tempCache := fmt.Sprintf("/tmp/psrp_krb5cc_%d", os.Getpid())
+				// Use kcc copy to copy credentials from API cache to file cache (Heimdal command)
+				// Security: detectedCache comes from parsing local 'klist' output, which is considered a trusted source.
+				// #nosec G204 -- klist output is system-generated and trusted for local user context
+				cmd := exec.Command("kcc", "copy", detectedCache, tempCache)
+				if err := cmd.Run(); err == nil {
+					detectedCache = tempCache
+				} else {
+					// kcc not available, can't use API cache with gokrb5
+					detectedCache = ""
+				}
 			}
 		}
 	}
