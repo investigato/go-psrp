@@ -35,6 +35,7 @@ psrp-client-mac
 cmd/*/psrp-client
 cmd/*/psrp-client.exe
 cmd/*/main
+cmd/*/psrp-client-linux-*
 
 # CodeQL
 codeql-db/
