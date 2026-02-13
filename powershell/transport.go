@@ -7,6 +7,7 @@ import (
 	"io"
 	"sync"
 
+	"github.com/google/uuid"
 	"github.com/smnsjas/go-psrp/wsman"
 )
 
@@ -28,6 +29,12 @@ type WSManTransport struct {
 	// Buffered data from Receive
 	readBuf bytes.Buffer
 	done    bool
+
+	// pipelineIDs maps PSRP pipeline UUIDs to WSMan command IDs.
+	// This enables MultiplexedTransport: SendPipelineData looks up
+	// the WSMan commandID so the <rsp:Stream> element gets the
+	// correct CommandId attribute, routing stdin to the right pipeline.
+	pipelineIDs sync.Map // uuid.UUID -> string (WSMan commandID)
 }
 
 // NewWSManTransport creates a transport that bridges WSMan to io.ReadWriter.
@@ -165,4 +172,54 @@ func (t *WSManTransport) CloseIdleConnections() {
 	if t.client != nil {
 		t.client.CloseIdleConnections()
 	}
+}
+
+// RegisterPipeline records the mapping from a PSRP pipeline UUID to its
+// WSMan command ID. This must be called after wsman.Client.Command()
+// returns, so that SendPipelineData can route data with the correct CommandId.
+func (t *WSManTransport) RegisterPipeline(pipelineID uuid.UUID, commandID string) {
+	t.pipelineIDs.Store(pipelineID, commandID)
+}
+
+// UnregisterPipeline removes the pipeline-to-commandID mapping.
+// Call this during pipeline cleanup (before or after Signal/terminate).
+func (t *WSManTransport) UnregisterPipeline(pipelineID uuid.UUID) {
+	t.pipelineIDs.Delete(pipelineID)
+}
+
+// SendCommand is a no-op for WSMan transports.
+// WSMan command creation is handled separately by PreparePipeline via
+// wsman.Client.Command(), so no additional action is needed here.
+func (t *WSManTransport) SendCommand(_ uuid.UUID) error {
+	return nil
+}
+
+// SendPipelineData sends PSRP fragment data to a specific pipeline's stdin.
+// It looks up the WSMan commandID for the given pipeline UUID and calls
+// wsman.Client.Send with that commandID, producing a
+// <rsp:Stream Name="stdin" CommandId="..."> element that routes the data
+// to the correct pipeline command on the server.
+func (t *WSManTransport) SendPipelineData(pipelineID uuid.UUID, data []byte) error {
+	// Serialize writes to ensure fragments arrive in order.
+	t.writeMu.Lock()
+	defer t.writeMu.Unlock()
+
+	t.mu.Lock()
+	ctx := t.ctx
+	t.mu.Unlock()
+
+	if t.client == nil {
+		return fmt.Errorf("transport not configured")
+	}
+
+	val, ok := t.pipelineIDs.Load(pipelineID)
+	if !ok {
+		return fmt.Errorf("unknown pipeline %s: not registered", pipelineID)
+	}
+	cmdID := val.(string)
+
+	if err := t.client.Send(ctx, t.epr, cmdID, "stdin", data); err != nil {
+		return fmt.Errorf("wsman send pipeline data: %w", err)
+	}
+	return nil
 }
