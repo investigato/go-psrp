@@ -2,8 +2,10 @@ package powershell
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/smnsjas/go-psrp/wsman"
 )
 
@@ -153,5 +155,108 @@ func TestPipeline_Methods(t *testing.T) {
 
 	if err := p.Close(context.Background()); err != nil {
 		t.Errorf("Close error = %v", err)
+	}
+}
+
+// TestWSManTransport_SendPipelineData verifies that SendPipelineData routes
+// data with the correct WSMan commandID for registered pipelines.
+func TestWSManTransport_SendPipelineData(t *testing.T) {
+	pipelineUUID := uuid.New()
+	wsmanCmdID := "CMD-" + uuid.New().String()
+
+	tests := []struct {
+		name       string
+		register   bool
+		pipelineID uuid.UUID
+		wantCmdID  string
+		wantErr    bool
+	}{
+		{
+			name:       "registered pipeline routes correctly",
+			register:   true,
+			pipelineID: pipelineUUID,
+			wantCmdID:  wsmanCmdID,
+			wantErr:    false,
+		},
+		{
+			name:       "unregistered pipeline returns error",
+			register:   false,
+			pipelineID: uuid.New(),
+			wantErr:    true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var capturedCmdID string
+			mock := &mockTransportClient{
+				sendFunc: func(_ context.Context, _ *wsman.EndpointReference, commandID, stream string, data []byte) error {
+					capturedCmdID = commandID
+					if stream != "stdin" {
+						return fmt.Errorf("unexpected stream: %s", stream)
+					}
+					return nil
+				},
+			}
+
+			transport := NewWSManTransport(mock, dummyPoolEPR(), "")
+
+			if tt.register {
+				transport.RegisterPipeline(pipelineUUID, wsmanCmdID)
+			}
+
+			err := transport.SendPipelineData(tt.pipelineID, []byte("test-data"))
+
+			if tt.wantErr {
+				if err == nil {
+					t.Error("expected error, got nil")
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("SendPipelineData failed: %v", err)
+			}
+
+			if capturedCmdID != tt.wantCmdID {
+				t.Errorf("CommandID = %q, want %q", capturedCmdID, tt.wantCmdID)
+			}
+		})
+	}
+}
+
+// TestWSManTransport_RegisterUnregister verifies the pipeline ID lifecycle.
+func TestWSManTransport_RegisterUnregister(t *testing.T) {
+	transport := NewWSManTransport(&mockWSManClientForPool{}, dummyPoolEPR(), "")
+	pipelineID := uuid.New()
+	cmdID := "CMD-123"
+
+	// Register
+	transport.RegisterPipeline(pipelineID, cmdID)
+
+	// Verify registered
+	val, ok := transport.pipelineIDs.Load(pipelineID)
+	if !ok {
+		t.Fatal("pipeline not found after Register")
+	}
+	if val.(string) != cmdID {
+		t.Errorf("commandID = %q, want %q", val, cmdID)
+	}
+
+	// Unregister
+	transport.UnregisterPipeline(pipelineID)
+
+	// Verify removed
+	_, ok = transport.pipelineIDs.Load(pipelineID)
+	if ok {
+		t.Error("pipeline still present after Unregister")
+	}
+}
+
+// TestWSManTransport_SendCommand_NoOp verifies SendCommand is a no-op.
+func TestWSManTransport_SendCommand_NoOp(t *testing.T) {
+	transport := NewWSManTransport(&mockWSManClientForPool{}, dummyPoolEPR(), "")
+	if err := transport.SendCommand(uuid.New()); err != nil {
+		t.Errorf("SendCommand returned error: %v", err)
 	}
 }
