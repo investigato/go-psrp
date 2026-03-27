@@ -10,9 +10,9 @@ type Envelope struct {
 
 	// Namespace declarations
 	NsSoap    string `xml:"xmlns:s,attr"`
-	NsAddr    string `xml:"xmlns:a,attr"`
-	NsWsman   string `xml:"xmlns:w,attr"`
-	NsMsWsman string `xml:"xmlns:p,attr"`
+	NsAddr    string `xml:"xmlns:wsa,attr"`
+	NsWsman   string `xml:"xmlns:wsman,attr"`
+	NsMsWsman string `xml:"xmlns:wsmv,attr"`
 	NsShellNs string `xml:"xmlns:rsp,attr,omitempty"`
 	NsXsiAttr string `xml:"xmlns:xsi,attr,omitempty"`
 
@@ -23,26 +23,32 @@ type Envelope struct {
 // Header represents the SOAP header containing WS-Addressing and WS-Management headers.
 type Header struct {
 	// WS-Addressing headers
-	Action    *ActionHeader `xml:"a:Action,omitempty"`
-	To        string        `xml:"a:To,omitempty"`
-	MessageID string        `xml:"a:MessageID,omitempty"`
-	ReplyTo   *ReplyTo      `xml:"a:ReplyTo,omitempty"`
+	Action    *ActionHeader `xml:"wsa:Action,omitempty"`
+	To        string        `xml:"wsa:To,omitempty"`
+	MessageID string        `xml:"wsa:MessageID,omitempty"`
+	ReplyTo   *ReplyTo      `xml:"wsa:ReplyTo,omitempty"`
 
 	// WS-Management headers
-	ResourceURI      *ResourceURIHeader     `xml:"w:ResourceURI,omitempty"`
-	MaxEnvelopeSize  *MaxEnvelopeSizeHeader `xml:"w:MaxEnvelopeSize,omitempty"`
-	OperationTimeout string                 `xml:"w:OperationTimeout,omitempty"`
-	Locale           *Locale                `xml:"w:Locale,omitempty"`
-	DataLocale       *DataLocale            `xml:"p:DataLocale,omitempty"`
-	SessionID        string                 `xml:"p:SessionId,omitempty"`
+	ResourceURI      *ResourceURIHeader     `xml:"wsman:ResourceURI,omitempty"`
+	MaxEnvelopeSize  *MaxEnvelopeSizeHeader `xml:"wsman:MaxEnvelopeSize,omitempty"`
+	OperationTimeout string                 `xml:"wsman:OperationTimeout,omitempty"`
+	Locale           *Locale                `xml:"wsman:Locale,omitempty"`
+	DataLocale       *DataLocale            `xml:"wsmv:DataLocale,omitempty"`
+	SessionID        *SessionIDHeader       `xml:"wsmv:SessionId,omitempty"`
 
 	// Shell-specific headers
-	SelectorSet *SelectorSet `xml:"w:SelectorSet,omitempty"`
-	OptionSet   *OptionSet   `xml:"w:OptionSet,omitempty"`
+	SelectorSet *SelectorSet `xml:"wsmv:SelectorSet,omitempty"`
+	OptionSet   *OptionSet   `xml:"wsmv:OptionSet,omitempty"`
 }
 
 // ActionHeader represents Action element with mustUnderstand attribute.
 type ActionHeader struct {
+	MustUnderstand string `xml:"s:mustUnderstand,attr,omitempty"`
+	Value          string `xml:",chardata"`
+}
+
+// SessionIDHeader represents SessionId element with mustUnderstand attribute.
+type SessionIDHeader struct {
 	MustUnderstand string `xml:"s:mustUnderstand,attr,omitempty"`
 	Value          string `xml:",chardata"`
 }
@@ -73,7 +79,7 @@ type DataLocale struct {
 
 // ReplyTo represents the WS-Addressing ReplyTo element.
 type ReplyTo struct {
-	Address *AddressHeader `xml:"a:Address"`
+	Address *AddressHeader `xml:"wsa:Address"`
 }
 
 // AddressHeader represents Address element with mustUnderstand attribute.
@@ -84,13 +90,13 @@ type AddressHeader struct {
 
 // SelectorSet contains selectors for targeting specific resources.
 type SelectorSet struct {
-	Selectors []Selector `xml:"w:Selector"`
+	Selectors []Selector `xml:"wsmv:Selector"`
 }
 
 // OptionSet contains options for the operation.
 type OptionSet struct {
 	MustUnderstand string   `xml:"s:mustUnderstand,attr,omitempty"`
-	Options        []Option `xml:"w:Option"`
+	Options        []Option `xml:"wsmv:Option"`
 }
 
 // Option represents a single option.
@@ -222,7 +228,10 @@ func (e *Envelope) WithBody(content []byte) *Envelope {
 
 // WithSessionID sets the WS-Management SessionId header.
 func (e *Envelope) WithSessionID(sessionID string) *Envelope {
-	e.Header.SessionID = sessionID
+	e.Header.SessionID = &SessionIDHeader{
+		MustUnderstand: "true",
+		Value:          sessionID,
+	}
 	return e
 }
 
