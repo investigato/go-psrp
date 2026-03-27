@@ -192,14 +192,21 @@ func (t *HTTPTransport) ensureHTTPTransport() *http.Transport {
 
 // Post sends a SOAP request and returns the response body.
 func (t *HTTPTransport) Post(ctx context.Context, url string, body []byte) ([]byte, error) {
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("transport: failed to create request: %w", err)
 	}
 
 	req.Header.Set("Content-Type", ContentTypeSOAP)
-	req.ContentLength = -1 // Let http.Client determine Content-Length
+	actualContentLength := int64(len(body))
+	fmt.Printf("Content-Length: %d\n", actualContentLength)
+	req.ContentLength = actualContentLength
+
+	req.Header.Set("User-Agent", "Merton WinRM Client")
+	req.Header.Del("Accept-Encoding")
 	fmt.Printf("=== SENDING ===\n%s\n===============\n", string(body))
+
 	resp, err := t.client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("transport: request failed: %w", err)

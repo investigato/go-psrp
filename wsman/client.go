@@ -73,7 +73,7 @@ func (c *Client) Create(ctx context.Context, options map[string]string, creation
 		WithTo(c.endpoint).
 		WithResourceURI(resourceURI).
 		WithMaxEnvelopeSize(512000).
-		WithOperationTimeout("PT60S").
+		WithOperationTimeout("PT30S").
 		WithMessageID("uuid:" + strings.ToUpper(uuid.New().String())).
 		WithReplyTo(AddressAnonymous).
 		WithSessionID(c.sessionID).
@@ -96,20 +96,19 @@ func (c *Client) Create(ctx context.Context, options map[string]string, creation
 
 	// Build shell body with optional creationXml for PSRP
 	// Generate client-side ShellId as base suggestion
-	shellID := strings.ToUpper(uuid.New().String())
+	// check if the ctx has ShellID
+	var shellID string
+	if ctxShellID, ok := ctx.Value("ShellID").(string); ok && ctxShellID != "" {
+		shellID = ctxShellID
+		fmt.Printf("ShellID: %s\n", shellID)
+	}
 	var shellBody string
 	if creationXML != "" {
-		shellBody = `<rsp:Shell ShellId="` + shellID + `" xmlns:rsp="` + NsShell + `">
-  <rsp:InputStreams>stdin pr</rsp:InputStreams>
-  <rsp:OutputStreams>stdout</rsp:OutputStreams>
-  <creationXml xmlns="http://schemas.microsoft.com/powershell">` + creationXML + `</creationXml>
-</rsp:Shell>`
+		// Flatten the XML into a single line
+		shellBody = `<rsp:Shell ShellId="` + shellID + `"><rsp:InputStreams>stdin pr</rsp:InputStreams><rsp:OutputStreams>stdout</rsp:OutputStreams><creationXml xmlns="http://schemas.microsoft.com/powershell">` + creationXML + `</creationXml></rsp:Shell>`
 	} else {
 		// Basic WinRS shell
-		shellBody = `<rsp:Shell ShellId="` + shellID + `" xmlns:rsp="` + NsShell + `">
-  <rsp:InputStreams>stdin</rsp:InputStreams>
-  <rsp:OutputStreams>stdout stderr</rsp:OutputStreams>
-</rsp:Shell>`
+		shellBody = `<rsp:Shell ShellId="` + shellID + `" xmlns:rsp="` + NsShell + `"><rsp:InputStreams>stdin</rsp:InputStreams>  <rsp:OutputStreams>stdout stderr</rsp:OutputStreams></rsp:Shell>`
 	}
 	env.WithBody([]byte(shellBody))
 

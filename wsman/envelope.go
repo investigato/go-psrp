@@ -37,8 +37,8 @@ type Header struct {
 	SessionID        *SessionIDHeader       `xml:"wsmv:SessionId,omitempty"`
 
 	// Shell-specific headers
-	SelectorSet *SelectorSet `xml:"wsmv:SelectorSet,omitempty"`
-	OptionSet   *OptionSet   `xml:"wsmv:OptionSet,omitempty"`
+	SelectorSet *SelectorSet `xml:"wsman:SelectorSet,omitempty"`
+	OptionSet   *OptionSet   `xml:"wsman:OptionSet,omitempty"`
 }
 
 // ActionHeader represents Action element with mustUnderstand attribute.
@@ -67,13 +67,13 @@ type MaxEnvelopeSizeHeader struct {
 
 // Locale representing xml:lang attribute
 type Locale struct {
-	MustUnderstand bool   `xml:"s:mustUnderstand,attr,omitempty"`
+	MustUnderstand bool   `xml:"s:mustUnderstand,attr"`
 	Lang           string `xml:"xml:lang,attr,omitempty"`
 }
 
 // DataLocale representing xml:lang attribute
 type DataLocale struct {
-	MustUnderstand bool   `xml:"s:mustUnderstand,attr,omitempty"`
+	MustUnderstand bool   `xml:"s:mustUnderstand,attr"`
 	Lang           string `xml:"xml:lang,attr,omitempty"`
 }
 
@@ -90,13 +90,13 @@ type AddressHeader struct {
 
 // SelectorSet contains selectors for targeting specific resources.
 type SelectorSet struct {
-	Selectors []Selector `xml:"wsmv:Selector"`
+	Selectors []Selector `xml:"wsman:Selector"`
 }
 
 // OptionSet contains options for the operation.
 type OptionSet struct {
 	MustUnderstand string   `xml:"s:mustUnderstand,attr,omitempty"`
-	Options        []Option `xml:"wsmv:Option"`
+	Options        []Option `xml:"wsman:Option"`
 }
 
 // Option represents a single option.
@@ -229,7 +229,7 @@ func (e *Envelope) WithBody(content []byte) *Envelope {
 // WithSessionID sets the WS-Management SessionId header.
 func (e *Envelope) WithSessionID(sessionID string) *Envelope {
 	e.Header.SessionID = &SessionIDHeader{
-		MustUnderstand: "true",
+		MustUnderstand: "false",
 		Value:          sessionID,
 	}
 	return e

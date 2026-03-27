@@ -30,8 +30,14 @@ const (
 	// NsEventing is the WS-Eventing namespace.
 	NsEventing = "http://schemas.xmlsoap.org/ws/2004/08/eventing"
 
+	// NsXs the XML Schema namespace.
+	NsXs = "http://www.w3.org/2001/XMLSchema"
 	// NsXsi is the XML Schema Instance namespace.
 	NsXsi = "http://www.w3.org/2001/XMLSchema-instance"
+	// NsWsmid is the WS-Management Identification namespace.
+	NsWsmid = "http://schemas.dmtf.org/wbem/wsman/identity/1/wsmanidentity.xsd"
+	// NsWsmanfault is the WS-Management Fault namespace.
+	NsWsmanfault = "http://schemas.microsoft.com/wbem/wsman/1/wsmanfault"
 )
 
 // WS-Addressing constants.

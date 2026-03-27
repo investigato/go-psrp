@@ -265,18 +265,19 @@ func (rt *negotiateRoundTripper) roundTripInternal(req *http.Request, bodyBytes 
 		// Wrap in WinRM multipart/encrypted format
 		multipartBody, contentType := wrapWinRMMultipart(encrypted, len(bodyBytes))
 
-		// Update request with multipart body and Content-Type
-		req.Body = io.NopCloser(bytes.NewReader(multipartBody))
-		req.ContentLength = int64(len(multipartBody))
-		req.Header.Set("Content-Type", contentType)
-		req.GetBody = func() (io.ReadCloser, error) {
-			return io.NopCloser(bytes.NewReader(multipartBody)), nil
+		// No in-place mutations.
+		encReq, err := http.NewRequestWithContext(req.Context(), req.Method,
+			req.URL.String(), bytes.NewReader(multipartBody))
+		if err != nil {
+			return nil, fmt.Errorf("create encrypted request: %w", err)
 		}
+		// Copy relevant headers from original
+		for k, v := range req.Header {
+			encReq.Header[k] = v
+		}
+		encReq.Header.Set("Content-Type", contentType)
 
-		slog.Debug("Negotiate: Sending encrypted multipart request", "multipartLen", len(multipartBody))
-
-		// Send the encrypted request directly (skip auth loop)
-		resp, err := rt.base.RoundTrip(req)
+		resp, err := rt.base.RoundTrip(encReq)
 		if err != nil {
 			return nil, err
 		}

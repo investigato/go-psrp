@@ -132,18 +132,20 @@ func (b *WSManBackend) Init(ctx context.Context, pool *runspace.Pool) error {
 		return nil // Already opened
 	}
 
-	// 1. Get Handshake fragments from PSRP pool
-	frags, err := pool.GetHandshakeFragments()
-	if err != nil {
-		return err
-	}
-	creationXML := base64.StdEncoding.EncodeToString(frags)
-	// print a readable version of the XML for debugging (not the base64)
-	decoded, err := base64.StdEncoding.DecodeString(creationXML)
-	if err != nil {
-		return fmt.Errorf("decode handshake fragments: %w", err)
-	}
-	fmt.Printf("=== PSRP Handshake Fragments ===\n%s\n==============================\n", string(decoded))
+	// // 1. Get Handshake fragments from PSRP pool
+	// frags, err := pool.GetHandshakeFragments()
+	// if err != nil {
+	// 	return err
+	// }
+	// creationXML := base64.StdEncoding.EncodeToString(frags)
+	// // print a readable version of the XML for debugging (not the base64)
+	// decoded, err := base64.StdEncoding.DecodeString(creationXML)
+	// // convert the bytecode to hex for better readability in logs on a single line
+	// hexDump := hex.EncodeToString(decoded)
+	// if err != nil {
+	// 	return fmt.Errorf("decode handshake fragments: %w", err)
+	// }
+	// fmt.Printf("=== PSRP Handshake Fragments ===\n%s\n==============================\n", hexDump)
 	// 2. Create WSMan Shell
 	// Add protocolversion option as required by PSRP
 	options := map[string]string{
@@ -156,8 +158,13 @@ func (b *WSManBackend) Init(ctx context.Context, pool *runspace.Pool) error {
 	if b.resourceURI != "" && b.resourceURI != wsman.ResourceURIPowerShell {
 		options["ResourceURI"] = b.resourceURI
 	}
+	if b.shellID == "" {
+		b.shellID = pool.ID().String()
+		fmt.Printf("Current pool ID: %s\n", strings.ToUpper(b.shellID))
+		ctx = context.WithValue(ctx, "ShellID", strings.ToUpper(b.shellID))
+	}
 
-	epr, err := b.client.Create(ctx, options, creationXML)
+	epr, err := b.client.Create(ctx, options, "")
 	if err != nil {
 		return err
 	}
@@ -183,8 +190,8 @@ func (b *WSManBackend) Init(ctx context.Context, pool *runspace.Pool) error {
 	b.opened = true
 
 	// 3. Open PSRP pool (skip handshake send as we did it in Create)
-	pool.SkipHandshakeSend = true
-	return pool.Open(ctx)
+	// pool.SkipHandshakeSend = true
+	return pool.OpenWSMan(ctx)
 }
 
 // Close terminates all pipelines and closes the WSMan shell.
