@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/smnsjas/go-psrp/wsman"
+	"github.com/investigato/go-psrp/wsman"
 )
 
 // reused mockWSManClientForPool from runspace_test.go?

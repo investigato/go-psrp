@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/smnsjas/go-psrp/wsman"
+	"github.com/investigato/go-psrp/wsman"
 )
 
 // mockWSManClient is a test double for WSMan operations.

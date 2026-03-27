@@ -36,10 +36,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/investigato/go-psrp/client"
+	"github.com/investigato/go-psrp/internal/log"
+	"github.com/investigato/go-psrp/wsman/auth"
 	"github.com/investigato/go-psrpcore/serialization"
-	"github.com/smnsjas/go-psrp/client"
-	"github.com/smnsjas/go-psrp/internal/log"
-	"github.com/smnsjas/go-psrp/wsman/auth"
 	"golang.org/x/term"
 )
 

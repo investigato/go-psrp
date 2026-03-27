@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/smnsjas/go-psrp/wsman/transport"
+	"github.com/investigato/go-psrp/wsman/transport"
 )
 
 // TestClient_Create verifies the Create operation builds correct SOAP envelope.

@@ -7,7 +7,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/smnsjas/go-psrp/client"
+	"github.com/investigato/go-psrp/client"
 )
 
 func ExampleNew() {

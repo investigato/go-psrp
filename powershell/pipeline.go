@@ -3,7 +3,7 @@ package powershell
 import (
 	"context"
 
-	"github.com/smnsjas/go-psrp/wsman"
+	"github.com/investigato/go-psrp/wsman"
 )
 
 // Pipeline represents a PowerShell pipeline running in a RunspacePool.

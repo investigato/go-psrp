@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/smnsjas/go-psrp/client"
+	"github.com/investigato/go-psrp/client"
 	"golang.org/x/term"
 )
 

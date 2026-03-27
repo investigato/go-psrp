@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/smnsjas/go-psrp/wsman"
+	"github.com/investigato/go-psrp/wsman"
 )
 
 // EventSubscription manages an active event subscription.

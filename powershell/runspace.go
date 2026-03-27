@@ -10,9 +10,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/investigato/go-psrp/wsman"
 	"github.com/investigato/go-psrpcore/pipeline"
 	"github.com/investigato/go-psrpcore/runspace"
-	"github.com/smnsjas/go-psrp/wsman"
 )
 
 // PoolClient defines the WSMan operations needed by RunspacePool.

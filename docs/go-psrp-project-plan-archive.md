@@ -8,7 +8,7 @@
 ## Project Overview
 
 **Project Name:** go-psrp  
-**Module Path:** `github.com/smnsjas/go-psrp`  
+**Module Path:** `github.com/investigato/go-psrp`  
 **License:** MIT  
 **Go Version:** 1.22+  
 
@@ -76,7 +76,7 @@ Complete PowerShell Remoting Protocol implementation for Go by adding transport 
 ```text
 go-psrp/
 │
-├── go.mod                          # module github.com/smnsjas/go-psrp
+├── go.mod                          # module github.com/investigato/go-psrp
 ├── go.sum
 ├── LICENSE                         # MIT License
 ├── README.md                       # Project documentation
@@ -2186,7 +2186,7 @@ return fmt.Errorf("wsman: failed to create shell: %w", err)
 ## Appendix A: Sample go.mod
 
 ```go
-module github.com/smnsjas/go-psrp
+module github.com/investigato/go-psrp
 
 go 1.22
 
@@ -2210,7 +2210,7 @@ import (
     "log"
     "time"
 
-    "github.com/smnsjas/go-psrp/client"
+    "github.com/investigato/go-psrp/client"
 )
 
 func main() {

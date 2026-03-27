@@ -19,7 +19,7 @@ linters-settings:
     line-length: 120
   goimports:
     local-prefixes:
-      - github.com/smnsjas/go-psrp
+      - github.com/investigato/go-psrp
   gocritic:
     enabled-tags:
       - diagnostic

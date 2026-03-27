@@ -22,7 +22,7 @@
 //
 // # Quick Start
 //
-//	import "github.com/smnsjas/go-psrp/client"
+//	import "github.com/investigato/go-psrp/client"
 //
 //	// 1. Configure the client
 //	cfg := client.DefaultConfig()

@@ -194,10 +194,10 @@ This library follows semantic versioning. Security fixes are released as patch v
 
 ```bash
 # Check for updates
-go get -u github.com/smnsjas/go-psrp
+go get -u github.com/investigato/go-psrp
 
 # Or pin to latest patch version
-go get github.com/smnsjas/go-psrp@latest
+go get github.com/investigato/go-psrp@latest
 ```
 
 ## References

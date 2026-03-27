@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/investigato/go-psrp/powershell"
 	"github.com/investigato/go-psrpcore/runspace"
-	"github.com/smnsjas/go-psrp/powershell"
 )
 
 type spyTransport struct {

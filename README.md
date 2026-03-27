@@ -1,8 +1,8 @@
 # go-psrp
 
 <!-- markdownlint-disable MD013 -->
-[![Go Reference](https://pkg.go.dev/badge/github.com/smnsjas/go-psrp.svg)](https://pkg.go.dev/github.com/smnsjas/go-psrp)
-[![Go Report Card](https://goreportcard.com/badge/github.com/smnsjas/go-psrp)](https://goreportcard.com/report/github.com/smnsjas/go-psrp)
+[![Go Reference](https://pkg.go.dev/badge/github.com/investigato/go-psrp.svg)](https://pkg.go.dev/github.com/investigato/go-psrp)
+[![Go Report Card](https://goreportcard.com/badge/github.com/investigato/go-psrp)](https://goreportcard.com/report/github.com/investigato/go-psrp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 <!-- markdownlint-enable MD013 -->
 
@@ -69,7 +69,7 @@ adding transport layers, making it ready for production PowerShell remoting.
 ## Installation
 
 ```bash
-go get github.com/smnsjas/go-psrp
+go get github.com/investigato/go-psrp
 ```
 
 ## Quick Start
@@ -84,7 +84,7 @@ import (
     "fmt"
     "log"
 
-    "github.com/smnsjas/go-psrp/client"
+    "github.com/investigato/go-psrp/client"
 )
 
 func main() {

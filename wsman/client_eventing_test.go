@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/smnsjas/go-psrp/wsman/transport"
+	"github.com/investigato/go-psrp/wsman/transport"
 )
 
 // MockTransport allows mocking round-trip responses

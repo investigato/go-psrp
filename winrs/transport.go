@@ -3,7 +3,7 @@ package winrs
 import (
 	"context"
 
-	"github.com/smnsjas/go-psrp/wsman"
+	"github.com/investigato/go-psrp/wsman"
 )
 
 // Transport abstracts WSMan operations for WinRS shells.

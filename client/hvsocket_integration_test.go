@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/smnsjas/go-psrp/client"
+	"github.com/investigato/go-psrp/client"
 )
 
 // HvSocketIntegrationConfig holds configuration for HvSocket tests.

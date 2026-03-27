@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-	"github.com/smnsjas/go-psrp/wsman/transport"
+	"github.com/investigato/go-psrp/wsman/transport"
 )
 
 // Client is a WSMan client for communicating with WinRM endpoints.

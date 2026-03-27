@@ -7,7 +7,7 @@ import (
 	"io"
 	"sync"
 
-	"github.com/smnsjas/go-psrp/wsman"
+	"github.com/investigato/go-psrp/wsman"
 )
 
 // WSManClient defines the WSMan operations needed by the adapter.

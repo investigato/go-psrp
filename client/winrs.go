@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/smnsjas/go-psrp/winrs"
+	"github.com/investigato/go-psrp/winrs"
 )
 
 // CmdResult holds the result of a WinRS command execution.

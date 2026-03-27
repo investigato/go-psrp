@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/smnsjas/go-psrp/wsman/transport"
+	"github.com/investigato/go-psrp/wsman/transport"
 )
 
 // MockHTTPTransport for client package tests

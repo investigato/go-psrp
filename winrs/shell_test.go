@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/smnsjas/go-psrp/wsman"
+	"github.com/investigato/go-psrp/wsman"
 )
 
 // mockTransport implements Transport for testing.

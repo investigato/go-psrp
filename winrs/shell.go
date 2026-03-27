@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/smnsjas/go-psrp/wsman"
+	"github.com/investigato/go-psrp/wsman"
 )
 
 // shellConfig holds the configuration for a Shell.

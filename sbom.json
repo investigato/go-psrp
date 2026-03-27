@@ -46,14 +46,14 @@
       }
     ],
     "component": {
-      "bom-ref": "pkg:golang/github.com/smnsjas/go-psrp@v0.0.0-20251224174410-eee1b10f3caa?type=module",
+      "bom-ref": "pkg:golang/github.com/investigato/go-psrp@v0.0.0-20251224174410-eee1b10f3caa?type=module",
       "type": "application",
-      "name": "github.com/smnsjas/go-psrp",
+      "name": "github.com/investigato/go-psrp",
       "version": "v0.0.0-20251224174410-eee1b10f3caa",
-      "purl": "pkg:golang/github.com/smnsjas/go-psrp@v0.0.0-20251224174410-eee1b10f3caa?type=module\u0026goos=darwin\u0026goarch=arm64",
+      "purl": "pkg:golang/github.com/investigato/go-psrp@v0.0.0-20251224174410-eee1b10f3caa?type=module\u0026goos=darwin\u0026goarch=arm64",
       "externalReferences": [
         {
-          "url": "https://github.com/smnsjas/go-psrp",
+          "url": "https://github.com/investigato/go-psrp",
           "type": "vcs"
         }
       ]
@@ -103,7 +103,7 @@
   ],
   "dependencies": [
     {
-      "ref": "pkg:golang/github.com/smnsjas/go-psrp@v0.0.0-20251224174410-eee1b10f3caa?type=module",
+      "ref": "pkg:golang/github.com/investigato/go-psrp@v0.0.0-20251224174410-eee1b10f3caa?type=module",
       "dependsOn": [
         "pkg:golang/github.com/investigato/ntlmssp@v0.1.0?type=module",
         "pkg:golang/github.com/google/uuid@v1.6.0?type=module"

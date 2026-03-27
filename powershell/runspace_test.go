@@ -6,9 +6,9 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/investigato/go-psrp/wsman"
 	"github.com/investigato/go-psrpcore/pipeline"
 	"github.com/investigato/go-psrpcore/runspace"
-	"github.com/smnsjas/go-psrp/wsman"
 )
 
 // mockWSManClientForPool implements PoolClient for tests.

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/smnsjas/go-psrp/wsman"
+	"github.com/investigato/go-psrp/wsman"
 )
 
 // Process represents a command running in a WinRS shell.

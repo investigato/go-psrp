@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/smnsjas/go-psrp/client"
+	"github.com/investigato/go-psrp/client"
 )
 
 // IntegrationTestConfig holds configuration for remote server tests.

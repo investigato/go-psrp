@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/investigato/go-psrp/client"
 	"github.com/investigato/go-psrpcore/serialization"
-	"github.com/smnsjas/go-psrp/client"
 )
 
 func TestStreams(t *testing.T) {

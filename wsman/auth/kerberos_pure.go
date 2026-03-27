@@ -11,15 +11,15 @@ import (
 	"os"
 	"strings"
 
-	"github.com/go-krb5/krb5/client"
-	"github.com/go-krb5/krb5/config"
-	"github.com/go-krb5/krb5/credentials"
-	"github.com/go-krb5/krb5/gssapi"
-	"github.com/go-krb5/krb5/iana/flags"
-	"github.com/go-krb5/krb5/iana/msgtype"
-	"github.com/go-krb5/krb5/keytab"
-	"github.com/go-krb5/krb5/messages"
-	"github.com/go-krb5/krb5/spnego"
+	"github.com/investigato/krb5/client"
+	"github.com/investigato/krb5/config"
+	"github.com/investigato/krb5/credentials"
+	"github.com/investigato/krb5/gssapi"
+	"github.com/investigato/krb5/iana/flags"
+	"github.com/investigato/krb5/iana/msgtype"
+	"github.com/investigato/krb5/keytab"
+	"github.com/investigato/krb5/messages"
+	"github.com/investigato/krb5/spnego"
 )
 
 // ContextKeyIsHTTPS is the context key for detecting HTTPS transport.
