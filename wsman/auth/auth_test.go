@@ -78,11 +78,15 @@ func TestBasicAuth_Transport(t *testing.T) {
 	}))
 	defer server.Close()
 
-	// Create client with auth transport
-	client := &http.Client{
-		Transport: auth.Transport(http.DefaultTransport),
+	newTransport, err := auth.Transport(http.DefaultTransport)
+	if err != nil {
+		t.Fatalf("Transport() returned error: %v", err)
 	}
 
+	// Create client with auth transport
+	client := &http.Client{
+		Transport: newTransport,
+	}
 	resp, err := client.Get(server.URL)
 	if err != nil {
 		t.Fatalf("request failed: %v", err)
@@ -111,7 +115,10 @@ func TestNTLMAuth_Transport(t *testing.T) {
 	}
 	auth := NewNTLMAuth(creds)
 
-	transport := auth.Transport(http.DefaultTransport)
+	transport, err := auth.Transport(http.DefaultTransport)
+	if err != nil {
+		t.Errorf("Transport() returned error: %v", err)
+	}
 	if transport == nil {
 		t.Error("Transport returned nil")
 	}

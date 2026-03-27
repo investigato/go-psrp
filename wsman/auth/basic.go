@@ -23,11 +23,11 @@ func (a *BasicAuth) Name() string {
 }
 
 // Transport wraps an http.RoundTripper with Basic authentication.
-func (a *BasicAuth) Transport(base http.RoundTripper) http.RoundTripper {
+func (a *BasicAuth) Transport(base http.RoundTripper) (http.RoundTripper, error) {
 	return &basicTransport{
 		base:  base,
 		creds: a.creds,
-	}
+	}, nil
 }
 
 // basicTransport adds Basic auth header to requests.

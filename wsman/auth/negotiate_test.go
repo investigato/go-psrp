@@ -73,7 +73,10 @@ func TestNegotiateRoundTrip_Success_NoChallenge(t *testing.T) {
 	}
 
 	auth := NewNegotiateAuth(&MockSecurityProvider{})
-	rt := auth.Transport(transport)
+	rt, err := auth.Transport(transport)
+	if err != nil {
+		t.Fatalf("Transport() returned error: %v", err)
+	}
 
 	req, _ := http.NewRequest("GET", "http://example.com", nil)
 	resp, err := rt.RoundTrip(req)
@@ -153,7 +156,10 @@ func TestNegotiateRoundTrip_ChallengeResponse(t *testing.T) {
 	}
 
 	auth := NewNegotiateAuth(provider)
-	rt := auth.Transport(transport)
+	rt, err := auth.Transport(transport)
+	if err != nil {
+		t.Fatalf("Transport() returned error: %v", err)
+	}
 
 	req, _ := http.NewRequest("GET", "http://example.com", strings.NewReader("body")) // Trigger Handshake First
 	resp, err := rt.RoundTrip(req)
@@ -215,7 +221,10 @@ func TestNegotiateRoundTrip_WithBody(t *testing.T) {
 	}
 
 	auth := NewNegotiateAuth(provider)
-	rt := auth.Transport(transport)
+	rt, err := auth.Transport(transport)
+	if err != nil {
+		t.Fatalf("Transport() returned error: %v", err)
+	}
 
 	// Must pass body that can be read
 	req, _ := http.NewRequest("POST", "http://example.com", strings.NewReader("request-body"))
@@ -247,10 +256,13 @@ func TestNegotiateRoundTrip_MaxRetries(t *testing.T) {
 	}
 
 	auth := NewNegotiateAuth(provider)
-	rt := auth.Transport(transport)
+	rt, err := auth.Transport(transport)
+	if err != nil {
+		t.Fatalf("Transport() returned error: %v", err)
+	}
 
 	req, _ := http.NewRequest("GET", "http://example.com", nil)
-	_, err := rt.RoundTrip(req)
+	_, err = rt.RoundTrip(req)
 	if err == nil {
 		t.Error("Expected error after max retries, got nil")
 	} else if !strings.Contains(err.Error(), "failed after 5 attempts") {

@@ -10,7 +10,7 @@ import (
 // Authenticator defines the interface for authentication handlers.
 type Authenticator interface {
 	// Transport wraps an http.RoundTripper with authentication.
-	Transport(base http.RoundTripper) http.RoundTripper
+	Transport(base http.RoundTripper) (http.RoundTripper, error)
 
 	// Name returns the authentication scheme name.
 	Name() string

@@ -1056,6 +1056,9 @@ func New(hostname string, cfg Config) (*Client, error) {
 			authenticator = auth.NewNTLMAuth(creds, auth.WithCBT(cfg.EnableCBT))
 		} else {
 			authenticator = auth.NewNegotiateAuth(provider)
+			if err != nil {
+				return nil, fmt.Errorf("create negotiate auth: %w", err)
+			}
 		}
 	case AuthNTLM:
 		authenticator = auth.NewNTLMAuth(creds, auth.WithCBT(cfg.EnableCBT))
@@ -1081,6 +1084,7 @@ func New(hostname string, cfg Config) (*Client, error) {
 			return nil, fmt.Errorf("create kerberos provider: %w", err)
 		}
 		authenticator = auth.NewNegotiateAuth(provider)
+
 	case AuthBasic:
 		authenticator = auth.NewBasicAuth(creds)
 	default:
@@ -1089,7 +1093,11 @@ func New(hostname string, cfg Config) (*Client, error) {
 	}
 
 	// Wrap transport with auth
-	tr.Client().Transport = authenticator.Transport(tr.Client().Transport)
+	newTransport, err := authenticator.Transport(tr.Client().Transport)
+	if err != nil {
+		return nil, fmt.Errorf("wrap transport with auth: %w", err)
+	}
+	tr.Client().Transport = newTransport
 
 	switch cfg.Transport {
 	case TransportHvSocket:

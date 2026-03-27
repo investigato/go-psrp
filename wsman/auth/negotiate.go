@@ -40,11 +40,11 @@ func (a *NegotiateAuth) Name() string {
 }
 
 // Transport wraps the base transport with Negotiate authentication logic.
-func (a *NegotiateAuth) Transport(base http.RoundTripper) http.RoundTripper {
+func (a *NegotiateAuth) Transport(base http.RoundTripper) (http.RoundTripper, error) {
 	return &negotiateRoundTripper{
 		base:     base,
 		provider: a.provider,
-	}
+	}, nil
 }
 
 type negotiateRoundTripper struct {
