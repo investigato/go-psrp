@@ -11,10 +11,10 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/smnsjas/go-psrpcore/messages"
-	"github.com/smnsjas/go-psrpcore/pipeline"
-	"github.com/smnsjas/go-psrpcore/runspace"
-	"github.com/smnsjas/go-psrpcore/serialization"
+	"github.com/investigato/go-psrpcore/messages"
+	"github.com/investigato/go-psrpcore/pipeline"
+	"github.com/investigato/go-psrpcore/runspace"
+	"github.com/investigato/go-psrpcore/serialization"
 )
 
 // TestClient_Execute_Mock verifies Execcute logic using mocked backend responses.

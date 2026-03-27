@@ -9,8 +9,8 @@ import (
 	"io"
 
 	"github.com/google/uuid"
-	"github.com/smnsjas/go-psrpcore/pipeline"
-	"github.com/smnsjas/go-psrpcore/runspace"
+	"github.com/investigato/go-psrpcore/pipeline"
+	"github.com/investigato/go-psrpcore/runspace"
 )
 
 // HvSocketBackend is a stub for non-Windows platforms.

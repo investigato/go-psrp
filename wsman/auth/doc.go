@@ -3,7 +3,7 @@
 // # Supported Authentication Methods
 //
 //   - Basic: HTTP Basic authentication (use only over TLS)
-//   - NTLM: NT LAN Manager authentication (via github.com/Azure/go-ntlmssp)
+//   - NTLM: NT LAN Manager authentication (via github.com/investigato/ntlmssp)
 //   - Kerberos: Via gokrb5 (pure Go) on all platforms, or Windows SSPI
 //   - Negotiate: SPNEGO wrapper that prefers Kerberos, falls back to NTLM
 //

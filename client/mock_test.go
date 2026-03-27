@@ -5,8 +5,8 @@ import (
 	"io"
 	"sync"
 
-	"github.com/smnsjas/go-psrpcore/pipeline"
-	"github.com/smnsjas/go-psrpcore/runspace"
+	"github.com/investigato/go-psrpcore/pipeline"
+	"github.com/investigato/go-psrpcore/runspace"
 )
 
 // MockBackend is a mock implementation of powershell.RunspaceBackend

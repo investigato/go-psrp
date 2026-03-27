@@ -15,7 +15,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/smnsjas/go-psrpcore/serialization"
+	"github.com/investigato/go-psrpcore/serialization"
 	"golang.org/x/sync/errgroup"
 )
 

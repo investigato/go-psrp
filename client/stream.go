@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/smnsjas/go-psrpcore/messages"
-	"github.com/smnsjas/go-psrpcore/pipeline"
+	"github.com/investigato/go-psrpcore/messages"
+	"github.com/investigato/go-psrpcore/pipeline"
 )
 
 // StreamResult represents the streaming result of a PowerShell command execution.

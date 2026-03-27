@@ -4,8 +4,8 @@ import (
 	"context"
 	"io"
 
-	"github.com/smnsjas/go-psrpcore/pipeline"
-	"github.com/smnsjas/go-psrpcore/runspace"
+	"github.com/investigato/go-psrpcore/pipeline"
+	"github.com/investigato/go-psrpcore/runspace"
 )
 
 // RunspaceBackend abstracts the transport-specific logic for a PSRP runspace.

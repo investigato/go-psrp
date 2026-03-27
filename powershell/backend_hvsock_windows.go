@@ -15,10 +15,10 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/investigato/go-psrpcore/outofproc"
+	"github.com/investigato/go-psrpcore/pipeline"
+	"github.com/investigato/go-psrpcore/runspace"
 	"github.com/smnsjas/go-psrp/hvsock"
-	"github.com/smnsjas/go-psrpcore/outofproc"
-	"github.com/smnsjas/go-psrpcore/pipeline"
-	"github.com/smnsjas/go-psrpcore/runspace"
 )
 
 var hvDebug = os.Getenv("PSRP_DEBUG") != ""

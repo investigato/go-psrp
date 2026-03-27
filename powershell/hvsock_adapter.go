@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/smnsjas/go-psrpcore/outofproc"
+	"github.com/investigato/go-psrpcore/outofproc"
 )
 
 type hvOutOfProcAdapter struct {

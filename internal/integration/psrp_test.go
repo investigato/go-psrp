@@ -10,9 +10,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/smnsjas/go-psrpcore/fragments"
-	"github.com/smnsjas/go-psrpcore/messages"
-	"github.com/smnsjas/go-psrpcore/runspace"
+	"github.com/investigato/go-psrpcore/fragments"
+	"github.com/investigato/go-psrpcore/messages"
+	"github.com/investigato/go-psrpcore/runspace"
 )
 
 // MockPSRPTransport simulates WSMan transport for testing go-psrpcore integration.

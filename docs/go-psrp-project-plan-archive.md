@@ -50,9 +50,9 @@ Complete PowerShell Remoting Protocol implementation for Go by adding transport 
 
 | Package | Version | License | Purpose |
 |---------|---------|---------|---------|
-| `github.com/smnsjas/go-psrpcore` | latest | MIT | Core PSRP protocol |
+| `github.com/investigato/go-psrpcore` | latest | MIT | Core PSRP protocol |
 | `github.com/google/uuid` | v1.6.0 | BSD-3-Clause | UUID generation |
-| `github.com/Azure/go-ntlmssp` | latest | MIT | NTLM authentication |
+| `github.com/investigato/ntlmssp` | latest | MIT | NTLM authentication |
 
 ### Standard Library (no external dependency)
 
@@ -231,7 +231,7 @@ type Credentials struct {
 // Basic authentication
 func NewBasicAuth(creds Credentials) Authenticator
 
-// NTLM authentication (uses github.com/Azure/go-ntlmssp)
+// NTLM authentication (uses github.com/investigato/ntlmssp)
 func NewNTLMAuth(creds Credentials) Authenticator
 ```
 
@@ -2174,11 +2174,11 @@ return fmt.Errorf("wsman: failed to create shell: %w", err)
 
 - [psrpcore](https://github.com/jborean93/psrpcore) - Python PSRP protocol
 - [pypsrp](https://github.com/jborean93/pypsrp) - Python PSRP client with WSMan
-- [go-psrpcore](https://github.com/smnsjas/go-psrpcore) - Go PSRP protocol (this project's foundation)
+- [go-psrpcore](https://github.com/investigato/go-psrpcore) - Go PSRP protocol (this project's foundation)
 
 ### Dependencies
 
-- [Azure/go-ntlmssp](https://github.com/Azure/go-ntlmssp) - NTLM authentication
+- [Azure/go-ntlmssp](https://github.com/investigato/ntlmssp) - NTLM authentication
 - [google/uuid](https://github.com/google/uuid) - UUID generation
 
 ---
@@ -2191,9 +2191,9 @@ module github.com/smnsjas/go-psrp
 go 1.22
 
 require (
-    github.com/smnsjas/go-psrpcore v0.1.0
+    github.com/investigato/go-psrpcore v0.1.0
     github.com/google/uuid v1.6.0
-    github.com/Azure/go-ntlmssp v0.0.0-20221128193559-754e69321358
+    github.com/investigato/ntlmssp v0.0.0-20221128193559-754e69321358
 )
 ```
 

@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/smnsjas/go-psrpcore/runspace"
+	"github.com/investigato/go-psrpcore/runspace"
 )
 
 func TestIsRetryableError(t *testing.T) {

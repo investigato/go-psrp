@@ -19,14 +19,14 @@ import (
 	"unicode/utf16"
 
 	"github.com/google/uuid"
+	"github.com/investigato/go-psrpcore/messages"
+	"github.com/investigato/go-psrpcore/pipeline"
+	"github.com/investigato/go-psrpcore/runspace"
+	"github.com/investigato/go-psrpcore/serialization"
 	"github.com/smnsjas/go-psrp/powershell"
 	"github.com/smnsjas/go-psrp/wsman"
 	"github.com/smnsjas/go-psrp/wsman/auth"
 	"github.com/smnsjas/go-psrp/wsman/transport"
-	"github.com/smnsjas/go-psrpcore/messages"
-	"github.com/smnsjas/go-psrpcore/pipeline"
-	"github.com/smnsjas/go-psrpcore/runspace"
-	"github.com/smnsjas/go-psrpcore/serialization"
 )
 
 // Sentinel errors for common failure scenarios.

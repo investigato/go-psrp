@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/smnsjas/go-psrpcore/runspace"
+	"github.com/investigato/go-psrpcore/runspace"
 )
 
 // isRetryableError determines if an error should trigger command retry.

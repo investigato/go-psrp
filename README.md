@@ -11,7 +11,7 @@ transport layers.
 
 ## Overview
 
-This library builds on [go-psrpcore](https://github.com/smnsjas/go-psrpcore) by
+This library builds on [go-psrpcore](https://github.com/investigato/go-psrpcore) by
 adding transport layers, making it ready for production PowerShell remoting.
 
 <!-- markdownlint-disable MD013 -->
@@ -605,7 +605,7 @@ if result.HadErrors {
 ## Related Projects
 
 <!-- markdownlint-disable MD013 -->
-- [go-psrpcore](https://github.com/smnsjas/go-psrpcore) - Sans-IO PSRP protocol library
+- [go-psrpcore](https://github.com/investigato/go-psrpcore) - Sans-IO PSRP protocol library
 - [pypsrp](https://github.com/jborean93/pypsrp) - Python PSRP client (reference implementation)
 <!-- markdownlint-enable MD013 -->
 

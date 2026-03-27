@@ -61,9 +61,9 @@
   },
   "components": [
     {
-      "bom-ref": "pkg:golang/github.com/Azure/go-ntlmssp@v0.1.0?type=module",
+      "bom-ref": "pkg:golang/github.com/investigato/ntlmssp@v0.1.0?type=module",
       "type": "library",
-      "name": "github.com/Azure/go-ntlmssp",
+      "name": "github.com/investigato/ntlmssp",
       "version": "v0.1.0",
       "scope": "required",
       "hashes": [
@@ -72,10 +72,10 @@
           "content": "0e3168e98b56ccda8dbd076bc04cabfdee27854def462c1e9f3e505fbb05cfe0"
         }
       ],
-      "purl": "pkg:golang/github.com/Azure/go-ntlmssp@v0.1.0?type=module\u0026goos=darwin\u0026goarch=arm64",
+      "purl": "pkg:golang/github.com/investigato/ntlmssp@v0.1.0?type=module\u0026goos=darwin\u0026goarch=arm64",
       "externalReferences": [
         {
-          "url": "https://github.com/Azure/go-ntlmssp",
+          "url": "https://github.com/investigato/ntlmssp",
           "type": "vcs"
         }
       ]
@@ -105,12 +105,12 @@
     {
       "ref": "pkg:golang/github.com/smnsjas/go-psrp@v0.0.0-20251224174410-eee1b10f3caa?type=module",
       "dependsOn": [
-        "pkg:golang/github.com/Azure/go-ntlmssp@v0.1.0?type=module",
+        "pkg:golang/github.com/investigato/ntlmssp@v0.1.0?type=module",
         "pkg:golang/github.com/google/uuid@v1.6.0?type=module"
       ]
     },
     {
-      "ref": "pkg:golang/github.com/Azure/go-ntlmssp@v0.1.0?type=module"
+      "ref": "pkg:golang/github.com/investigato/ntlmssp@v0.1.0?type=module"
     },
     {
       "ref": "pkg:golang/github.com/google/uuid@v1.6.0?type=module"

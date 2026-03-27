@@ -22,9 +22,9 @@ The generated `sbom.json` should be included with each release.
 
 | Package | Version | License | Maintainer | Status |
 |---------|---------|---------|------------|--------|
-| `github.com/smnsjas/go-psrpcore` | latest | MIT | Project | ✅ Active |
+| `github.com/investigato/go-psrpcore` | latest | MIT | Project | ✅ Active |
 | `github.com/google/uuid` | v1.6.0 | BSD-3-Clause | Google | ✅ Official |
-| `github.com/Azure/go-ntlmssp` | v0.0.0-20221128193559 | MIT | Azure (Microsoft) | ✅ Active (Nov 2025) |
+| `github.com/investigato/ntlmssp` | v0.0.0-20221128193559 | MIT | Azure (Microsoft) | ✅ Active (Nov 2025) |
 
 ---
 

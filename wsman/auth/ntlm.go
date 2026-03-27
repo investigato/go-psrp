@@ -8,8 +8,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/Azure/go-ntlmssp"
-	ntlmcbt "github.com/smnsjas/go-ntlm-cbt"
+	"github.com/investigato/ntlmssp"
 )
 
 // NTLMAuth implements NTLM authentication with optional Channel Binding Token (CBT) support.
@@ -47,7 +46,7 @@ func (a *NTLMAuth) Name() string {
 }
 
 // Transport wraps an http.RoundTripper with NTLM authentication.
-// Uses github.com/Azure/go-ntlmssp for the NTLM handshake logic (connection management),
+// Uses github.com/investigato/ntlmssp for the NTLM handshake logic (connection management),
 // and a custom injector to add CBT support if enabled.
 func (a *NTLMAuth) Transport(base http.RoundTripper) http.RoundTripper {
 	var ntlmTransport http.RoundTripper
