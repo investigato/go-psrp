@@ -198,6 +198,7 @@ func (t *HTTPTransport) Post(ctx context.Context, url string, body []byte) ([]by
 	}
 
 	req.Header.Set("Content-Type", ContentTypeSOAP)
+	req.ContentLength = -1 // Let http.Client determine Content-Length
 	fmt.Printf("=== SENDING ===\n%s\n===============\n", string(body))
 	resp, err := t.client.Do(req)
 	if err != nil {
