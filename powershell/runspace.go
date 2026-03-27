@@ -138,7 +138,12 @@ func (b *WSManBackend) Init(ctx context.Context, pool *runspace.Pool) error {
 		return err
 	}
 	creationXML := base64.StdEncoding.EncodeToString(frags)
-
+	// print a readable version of the XML for debugging (not the base64)
+	decoded, err := base64.StdEncoding.DecodeString(creationXML)
+	if err != nil {
+		return fmt.Errorf("decode handshake fragments: %w", err)
+	}
+	fmt.Printf("=== PSRP Handshake Fragments ===\n%s\n==============================\n", string(decoded))
 	// 2. Create WSMan Shell
 	// Add protocolversion option as required by PSRP
 	options := map[string]string{

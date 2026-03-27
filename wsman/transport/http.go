@@ -198,7 +198,7 @@ func (t *HTTPTransport) Post(ctx context.Context, url string, body []byte) ([]by
 	}
 
 	req.Header.Set("Content-Type", ContentTypeSOAP)
-
+	fmt.Printf("=== SENDING ===\n%s\n===============\n", string(body))
 	resp, err := t.client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("transport: request failed: %w", err)
