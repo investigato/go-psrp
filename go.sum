@@ -38,6 +38,8 @@ github.com/investigato/ntlmssp v0.0.0-20260325214409-3af1af476eed h1:iBFp4EOmC1u
 github.com/investigato/ntlmssp v0.0.0-20260325214409-3af1af476eed/go.mod h1:eg3BavLY81DBGfRkdfIu+X1pYrYy0Qo/zTaOaPh3qKs=
 github.com/investigato/ntlmssp v0.0.0-20260327155623-4d344caa1dc4 h1:pcg2F+D2MShwS8AofV35dWO9t++bP0chJO/IQvWBPAQ=
 github.com/investigato/ntlmssp v0.0.0-20260327155623-4d344caa1dc4/go.mod h1:eg3BavLY81DBGfRkdfIu+X1pYrYy0Qo/zTaOaPh3qKs=
+github.com/investigato/ntlmssp v0.0.0-20260328175015-2e7a5ec36555 h1:Wy/pnG20+7EazfEb0hiDCnI6yqdVsrFCKBvR1GHvC+I=
+github.com/investigato/ntlmssp v0.0.0-20260328175015-2e7a5ec36555/go.mod h1:eg3BavLY81DBGfRkdfIu+X1pYrYy0Qo/zTaOaPh3qKs=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/stretchr/testify v1.11.1 h1:7s2iGBzp5EwR7/aIZr8ao5+dra3wiQyKjjFuvgVKu7U=
