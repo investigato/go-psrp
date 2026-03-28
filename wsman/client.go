@@ -70,16 +70,15 @@ func (c *Client) Create(ctx context.Context, options map[string]string, creation
 
 	env := NewEnvelope().
 		WithAction(ActionCreate).
-		WithTo(c.endpoint).
-		WithResourceURI(resourceURI).
-		WithMaxEnvelopeSize(512000).
-		WithOperationTimeout("PT30S").
-		WithMessageID("uuid:" + strings.ToUpper(uuid.New().String())).
-		WithReplyTo(AddressAnonymous).
-		WithSessionID(c.sessionID).
-		WithLocale("en-US").
 		WithDataLocale("en-US").
-		WithShellNamespace()
+		WithLocale("en-US").
+		WithMaxEnvelopeSize(512000).
+		WithMessageID("uuid:" + strings.ToUpper(uuid.New().String())).
+		WithOperationTimeout("PT30S").
+		WithReplyTo(AddressAnonymous).
+		WithResourceURI(resourceURI).
+		WithSessionID(c.sessionID).
+		WithTo(c.endpoint)
 
 	// Add shell options
 	//idleTimeout := "PT30M" // default
@@ -103,7 +102,7 @@ func (c *Client) Create(ctx context.Context, options map[string]string, creation
 		fmt.Printf("ShellID: %s\n", shellID)
 	}
 	var shellBody string
-	if creationXML != "" {
+	if creationXML == "" {
 		// Flatten the XML into a single line
 		shellBody = `<rsp:Shell ShellId="` + shellID + `"><rsp:InputStreams>stdin pr</rsp:InputStreams><rsp:OutputStreams>stdout</rsp:OutputStreams><creationXml xmlns="http://schemas.microsoft.com/powershell">` + creationXML + `</creationXml></rsp:Shell>`
 	} else {

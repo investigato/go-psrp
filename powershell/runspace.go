@@ -9,7 +9,7 @@ import (
 	"strings"
 	"sync"
 	"time"
-
+	"encoding/hex"
 	"github.com/investigato/go-psrp/wsman"
 	"github.com/investigato/go-psrpcore/pipeline"
 	"github.com/investigato/go-psrpcore/runspace"
@@ -132,20 +132,20 @@ func (b *WSManBackend) Init(ctx context.Context, pool *runspace.Pool) error {
 		return nil // Already opened
 	}
 
-	// // 1. Get Handshake fragments from PSRP pool
-	// frags, err := pool.GetHandshakeFragments()
-	// if err != nil {
-	// 	return err
-	// }
-	// creationXML := base64.StdEncoding.EncodeToString(frags)
-	// // print a readable version of the XML for debugging (not the base64)
-	// decoded, err := base64.StdEncoding.DecodeString(creationXML)
-	// // convert the bytecode to hex for better readability in logs on a single line
-	// hexDump := hex.EncodeToString(decoded)
-	// if err != nil {
-	// 	return fmt.Errorf("decode handshake fragments: %w", err)
-	// }
-	// fmt.Printf("=== PSRP Handshake Fragments ===\n%s\n==============================\n", hexDump)
+	// 1. Get Handshake fragments from PSRP pool
+	frags, err := pool.GetHandshakeFragments()
+	if err != nil {
+		return err
+	}
+	creationXML := base64.StdEncoding.EncodeToString(frags)
+	// print a readable version of the XML for debugging (not the base64)
+	decoded, err := base64.StdEncoding.DecodeString(creationXML)
+	// convert the bytecode to hex for better readability in logs on a single line
+	hexDump := hex.EncodeToString(decoded)
+	if err != nil {
+		return fmt.Errorf("decode handshake fragments: %w", err)
+	}
+	fmt.Printf("=== PSRP Handshake Fragments ===\n%s\n==============================\n", hexDump)
 	// 2. Create WSMan Shell
 	// Add protocolversion option as required by PSRP
 	options := map[string]string{
@@ -164,7 +164,7 @@ func (b *WSManBackend) Init(ctx context.Context, pool *runspace.Pool) error {
 		ctx = context.WithValue(ctx, "ShellID", strings.ToUpper(b.shellID))
 	}
 
-	epr, err := b.client.Create(ctx, options, "")
+	epr, err := b.client.Create(ctx, options, creationXML)
 	if err != nil {
 		return err
 	}
