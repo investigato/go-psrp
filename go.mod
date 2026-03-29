@@ -7,9 +7,9 @@ require github.com/google/uuid v1.6.0
 require (
 	github.com/Microsoft/go-winio v0.6.2
 	github.com/alexbrainman/sspi v0.0.0-20250919150558-7d374ff0d59e
-	github.com/investigato/go-psrpcore v0.0.0-20260329152232-2b74318d0504
-	github.com/investigato/krb5 v0.0.0-20260327013846-d49e152c0f1a
-	github.com/investigato/ntlmssp v0.0.0-20260328175015-2e7a5ec36555
+	github.com/investigato/go-psrpcore v0.0.0-20260329162904-6dd837751a8f
+	github.com/investigato/krb5 v0.0.0-20260329162930-a6f69e025591
+	github.com/investigato/ntlmssp v0.0.0-20260329163014-ecc88800ddc7
 	golang.org/x/sync v0.20.0
 	golang.org/x/term v0.41.0
 )
