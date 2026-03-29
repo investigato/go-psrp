@@ -197,20 +197,14 @@ func (t *HTTPTransport) Post(ctx context.Context, url string, body []byte) ([]by
 	if err != nil {
 		return nil, fmt.Errorf("transport: failed to create request: %w", err)
 	}
-	// Content-Type is either application/soap+xml;charset=UTF-8 for SOAP 1.2 or multipart/encrypted;protocol="application/HTTP-SPNEGO-session-encrypted";boundary="Encrypted Boundary"
-	contentType := ContentTypeSOAP
-	if bytes.HasPrefix(body, []byte("--Encrypted Boundary")) {
-		contentType = "multipart/encrypted;protocol=\"application/HTTP-SPNEGO-session-encrypted\";boundary=\"Encrypted Boundary\""
-	}
-	req.Header.Set("Content-Type", contentType)
-	actualContentLength := int64(len(body))
-	fmt.Printf("Content-Length: %d\n", actualContentLength)
-	req.ContentLength = actualContentLength
+	req.Header.Set("Content-Type", ContentTypeSOAP)
+	// actualContentLength := int64(len(body))
+	// fmt.Printf("Content-Length: %d\n", actualContentLength)
+	// req.ContentLength = actualContentLength
 
 	req.Header.Set("User-Agent", "Merton WinRM Client")
-	req.Header.Set("Accept-Encoding", "identity")
+	// req.Header.Set("Accept-Encoding", "identity")
 	req.Header.Set("Accept", "*/*")
-	req.Header.Del("Transfer-Encoding")
 	fmt.Printf("=== SENDING ===\n%s\n===============\n", string(body))
 
 	resp, err := t.client.Do(req)

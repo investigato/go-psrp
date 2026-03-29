@@ -56,7 +56,7 @@ func (a *NTLMAuth) Transport(base http.RoundTripper) (http.RoundTripper, error) 
 		&http.Client{Transport: base},
 		ntlmClient,
 		ntlmHttp.SendCBT(a.enableCBT),
-		ntlmHttp.Encryption(true),
+		ntlmHttp.Encryption(false),
 	)
 	if err != nil {
 		return nil, err

@@ -36,7 +36,28 @@ var (
 	// but Connect() has not been called or the connection was lost.
 	ErrNotConnected = errors.New("client not connected")
 )
+const (
+	PsrpShellKey  = "psrp"
+	WinRsShellKey = "winrs"
+)
 
+type ShellType int
+
+const (
+	PsrpShell ShellType = iota
+	WinRsShell
+)
+
+func (s ShellType) String() string {
+	switch s {
+	case PsrpShell:
+		return "PS"
+	case WinRsShell:
+		return "CMD"
+	default:
+		return fmt.Sprintf("Unknown ShellType(%d)", s)
+	}
+}
 // AuthType specifies the authentication mechanism.
 type AuthType int
 
@@ -174,6 +195,7 @@ func DefaultRetryPolicy() *RetryPolicy {
 
 // Config holds configuration for a PSRP client.
 type Config struct {
+	Hostname string
 	// Port is the WinRM port (default: 5985 for HTTP, 5986 for HTTPS).
 	Port int
 
@@ -426,6 +448,9 @@ type Client struct {
 	transport *transport.HTTPTransport
 	// wsman is the underlying WSMan client (for WSMan transport)
 	wsman *wsman.Client
+	activeShell   string
+	shellType     ShellType
+	// shells        map[string]Shell
 
 	// Message fragmentation
 	fragmentBuffer bytes.Buffer

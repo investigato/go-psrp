@@ -32,6 +32,10 @@ github.com/investigato/go-psrpcore v0.0.0-20260327155600-0e768d24676b h1:vOrTY0L
 github.com/investigato/go-psrpcore v0.0.0-20260327155600-0e768d24676b/go.mod h1:DbMTIFPfZrTk/hNMSsbajIolYbG/vjXqECSAU/WaeFk=
 github.com/investigato/go-psrpcore v0.0.0-20260327213258-9220306e76e8 h1:q1StP2AFFGxODRdymKvPMUmn6qrQvn/HJTnwus4F/J0=
 github.com/investigato/go-psrpcore v0.0.0-20260327213258-9220306e76e8/go.mod h1:DbMTIFPfZrTk/hNMSsbajIolYbG/vjXqECSAU/WaeFk=
+github.com/investigato/go-psrpcore v0.0.0-20260329150936-e291edacb6c6 h1:7m5Rtr1iah8hALT9RHyctqRH5AUDZSagYdKY69C/VU0=
+github.com/investigato/go-psrpcore v0.0.0-20260329150936-e291edacb6c6/go.mod h1:DbMTIFPfZrTk/hNMSsbajIolYbG/vjXqECSAU/WaeFk=
+github.com/investigato/go-psrpcore v0.0.0-20260329152232-2b74318d0504 h1:t52FaQkCKdPtA4GGqBUqgNvV3XfrFFxlJ5oFifZAWVw=
+github.com/investigato/go-psrpcore v0.0.0-20260329152232-2b74318d0504/go.mod h1:DbMTIFPfZrTk/hNMSsbajIolYbG/vjXqECSAU/WaeFk=
 github.com/investigato/krb5 v0.0.0-20260327013846-d49e152c0f1a h1:Fonbds2JLW6nOgb9YtLm/I2H0zrw8dg0gXrhNE8kxNc=
 github.com/investigato/krb5 v0.0.0-20260327013846-d49e152c0f1a/go.mod h1:f9pfeatrRVkR+3N27fw5/ZmyD8tFWrCNgGlvqEu+yUc=
 github.com/investigato/ntlmssp v0.0.0-20260325214409-3af1af476eed h1:iBFp4EOmC1u7GXWJovSG60f0/kMT3Ptu2aBgDUwvQnE=

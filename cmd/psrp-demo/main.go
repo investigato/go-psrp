@@ -5,7 +5,7 @@
 //	psrp-demo -server hostname -user username [-tls] [-ntlm] [-insecure]
 //
 // The demo runs multiple commands concurrently to demonstrate multiplexing.
-package main
+package main2
 
 import (
 	"context"

@@ -21,7 +21,7 @@
 //
 //	# Using flag (not recommended, visible in process list)
 //	psrp-client -server myserver -user admin -pass secret -script "Get-Process"
-package main
+package main3
 
 import (
 	"bufio"

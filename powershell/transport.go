@@ -72,7 +72,6 @@ func (t *WSManTransport) Write(p []byte) (int, error) {
 		return 0, fmt.Errorf("transport not configured")
 	}
 
-	// Send PSRP data to stdin stream
 	err := t.client.Send(ctx, t.epr, t.commandID, "stdin", p)
 	if err != nil {
 		return 0, fmt.Errorf("wsman send: %w", err)
@@ -116,6 +115,7 @@ func (t *WSManTransport) Read(p []byte) (int, error) {
 
 		// Receive output for this command.
 		// Note: For concurrent pipelines, the transport must be configured per-pipeline.
+
 		result, err := t.client.Receive(t.ctx, t.epr, t.commandID)
 		if err != nil {
 			return 0, fmt.Errorf("wsman receive: %w", err)

@@ -102,13 +102,30 @@ func (c *Client) Create(ctx context.Context, options map[string]string, creation
 		fmt.Printf("ShellID: %s\n", shellID)
 	}
 	var shellBody string
-	if creationXML == "" {
-		// Flatten the XML into a single line
-		shellBody = `<rsp:Shell ShellId="` + shellID + `"><rsp:InputStreams>stdin pr</rsp:InputStreams><rsp:OutputStreams>stdout</rsp:OutputStreams><creationXml xmlns="http://schemas.microsoft.com/powershell">` + creationXML + `</creationXml></rsp:Shell>`
-	} else {
+
+	// switch on ResourceURI, then if CreationXML is provided, use PSRP format, otherwise use basic WinRS format
+
+	switch resourceURI {
+	case ResourceURIPowerShell:
+		switch creationXML {
+		case "":
+			shellBody = `<rsp:Shell ShellId="` + shellID + `" xmlns:rsp="` + NsShell + `"><rsp:InputStreams>stdin pr</rsp:InputStreams><rsp:OutputStreams>stdout</rsp:OutputStreams><creationXml xmlns="http://schemas.microsoft.com/powershell">` + creationXML + `</creationXml></rsp:Shell>`
+		default:
+			shellBody = `<rsp:Shell ShellId="` + shellID + `" xmlns:rsp="` + NsShell + `"><rsp:InputStreams>stdin pr</rsp:InputStreams><rsp:OutputStreams>stdout</rsp:OutputStreams><creationXml xmlns="http://schemas.microsoft.com/powershell">` + creationXML + `</creationXml></rsp:Shell>`
+		}
+	default:
 		// Basic WinRS shell
 		shellBody = `<rsp:Shell ShellId="` + shellID + `" xmlns:rsp="` + NsShell + `"><rsp:InputStreams>stdin</rsp:InputStreams>  <rsp:OutputStreams>stdout stderr</rsp:OutputStreams></rsp:Shell>`
+
 	}
+
+	// if creationXML != "" {
+	// 	// Flatten the XML into a single line
+	// 	shellBody = `<rsp:Shell ShellId="` + shellID + `" xmlns:rsp="` + NsShell + `"><rsp:InputStreams>stdin pr</rsp:InputStreams><rsp:OutputStreams>stdout</rsp:OutputStreams><creationXml xmlns="http://schemas.microsoft.com/powershell">` + creationXML + `</creationXml></rsp:Shell>`
+	// } else {
+	// 	// Basic WinRS shell
+	// 	shellBody = `<rsp:Shell ShellId="` + shellID + `" xmlns:rsp="` + NsShell + `"><rsp:InputStreams>stdin</rsp:InputStreams>  <rsp:OutputStreams>stdout stderr</rsp:OutputStreams></rsp:Shell>`
+	// }
 	env.WithBody([]byte(shellBody))
 
 	respBody, err := c.sendEnvelope(ctx, env)
@@ -262,7 +279,7 @@ func (c *Client) Receive(ctx context.Context, epr *EndpointReference, commandID 
 		WithMessageID("uuid:"+strings.ToUpper(uuid.New().String())).
 		WithReplyTo(AddressAnonymous).
 		WithMaxEnvelopeSize(512000).
-		WithOperationTimeout("PT1S").
+		WithOperationTimeout("PT30S").
 		WithSessionID(c.sessionID).
 		WithLocale("en-US").
 		WithDataLocale("en-US").
