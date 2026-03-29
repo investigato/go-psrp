@@ -18,6 +18,8 @@ type shellConfig struct {
 	noProfile   bool
 }
 
+
+
 // Option configures a Shell.
 type Option func(*shellConfig)
 

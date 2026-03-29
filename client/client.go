@@ -36,6 +36,7 @@ var (
 	// but Connect() has not been called or the connection was lost.
 	ErrNotConnected = errors.New("client not connected")
 )
+
 const (
 	PsrpShellKey  = "psrp"
 	WinRsShellKey = "winrs"
@@ -58,6 +59,7 @@ func (s ShellType) String() string {
 		return fmt.Sprintf("Unknown ShellType(%d)", s)
 	}
 }
+
 // AuthType specifies the authentication mechanism.
 type AuthType int
 
@@ -226,6 +228,7 @@ type Config struct {
 	Realm string
 	// Krb5ConfPath is the path to krb5.conf (optional, defaults to /etc/krb5.conf).
 	Krb5ConfPath string
+	KdcIP				string // KDC IP address (optional, auto-discovered via DNS)
 	// KeytabPath is the path to the keytab file (optional).
 	KeytabPath string
 	// CCachePath is the path to the credential cache (optional).
@@ -394,6 +397,7 @@ func DefaultCircuitBreakerPolicy() *CircuitBreakerPolicy {
 // DefaultConfig returns a Config with sensible defaults.
 func DefaultConfig() Config {
 	return Config{
+		Hostname:              "",
 		Port:                  5985,
 		UseTLS:                false,
 		Timeout:               120 * time.Second,
@@ -447,9 +451,9 @@ type Client struct {
 
 	transport *transport.HTTPTransport
 	// wsman is the underlying WSMan client (for WSMan transport)
-	wsman *wsman.Client
-	activeShell   string
-	shellType     ShellType
+	wsman       *wsman.Client
+	activeShell string
+	shellType   ShellType
 	// shells        map[string]Shell
 
 	// Message fragmentation
