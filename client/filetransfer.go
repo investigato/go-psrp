@@ -1116,7 +1116,6 @@ func (c *Client) FetchFile(ctx context.Context, remotePath, localPath string, op
 			exit 1
 		}
 	`, remotePathB64)
-
 	result, err := c.Execute(ctx, sizeScript)
 	if err != nil {
 		c.logSecurityEvent("FILE_TRANSFER_FAILED", map[string]interface{}{

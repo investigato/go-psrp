@@ -395,7 +395,7 @@ func (c *Client) sendEnvelope(ctx context.Context, env *Envelope) ([]byte, error
 	if err != nil {
 		return nil, fmt.Errorf("marshal envelope: %w", err)
 	}
-	fmt.Fprintf(os.Stderr, "DEBUG: Sending Envelope:\n%s\n", string(body))
+	//fmt.Fprintf(os.Stderr, "DEBUG: Sending Envelope:\n%s\n", string(body))
 	respBody, err := c.transport.Post(ctx, c.endpoint, body)
 	if err != nil {
 		return nil, err

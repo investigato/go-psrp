@@ -95,7 +95,7 @@ func NewHTTPTransport(opts ...HTTPTransportOption) *HTTPTransport {
 				// We need enough connections to support high concurrency (e.g. 50 threads)
 				MaxIdleConns:        100,
 				MaxIdleConnsPerHost: 50,
-				MaxConnsPerHost:     50,
+				MaxConnsPerHost:     1,
 				// Longer idle timeout for NTLM sessions
 				IdleConnTimeout: 90 * time.Second,
 			},
@@ -200,7 +200,7 @@ func (t *HTTPTransport) Post(ctx context.Context, url string, body []byte) ([]by
 	req.Header.Set("Content-Type", ContentTypeSOAP)
 	req.Header.Set("User-Agent", "Merton WinRM Client")
 	req.Header.Set("Accept", "*/*")
-	
+
 	resp, err := t.client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("transport: request failed: %w", err)

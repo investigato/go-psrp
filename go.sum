@@ -22,10 +22,16 @@ github.com/hashicorp/go-cleanhttp v0.5.2 h1:035FKYIWjmULyFRBKPs8TBQoi0x6d9G4xc9n
 github.com/hashicorp/go-cleanhttp v0.5.2/go.mod h1:kO/YDlP8L1346E6Sodw+PrpBSV4/SoxCXGY6BqNFT48=
 github.com/investigato/go-psrpcore v0.0.0-20260329162904-6dd837751a8f h1:zc09oycYJcqkShmBnvzoxl7s/JMWAjwCm4E8jOMhRNc=
 github.com/investigato/go-psrpcore v0.0.0-20260329162904-6dd837751a8f/go.mod h1:DbMTIFPfZrTk/hNMSsbajIolYbG/vjXqECSAU/WaeFk=
+github.com/investigato/go-psrpcore v0.0.0-20260330202701-e0d3f5f097a4 h1:y7oeh5aF9VH1g8NLkf4eMvH8J7ZlY6YU+KUp8x8RuCU=
+github.com/investigato/go-psrpcore v0.0.0-20260330202701-e0d3f5f097a4/go.mod h1:DbMTIFPfZrTk/hNMSsbajIolYbG/vjXqECSAU/WaeFk=
 github.com/investigato/krb5 v0.0.0-20260329162930-a6f69e025591 h1:aHs4mUaCvIuCWbml1lO0okiohrQ878MO6rvY+XEz+rQ=
 github.com/investigato/krb5 v0.0.0-20260329162930-a6f69e025591/go.mod h1:f9pfeatrRVkR+3N27fw5/ZmyD8tFWrCNgGlvqEu+yUc=
 github.com/investigato/ntlmssp v0.0.0-20260330143422-24b81294f67b h1:g7CqCHSxpmw2rCt2iJyAAWEjZTI0BRfaRV1PSgsj3bc=
 github.com/investigato/ntlmssp v0.0.0-20260330143422-24b81294f67b/go.mod h1:eg3BavLY81DBGfRkdfIu+X1pYrYy0Qo/zTaOaPh3qKs=
+github.com/investigato/ntlmssp v0.0.0-20260330172603-f6dd35b42660 h1:mqDkQJ38oEB7IARXdDU8TktUfCWCPzR5tVtv3IUrwjw=
+github.com/investigato/ntlmssp v0.0.0-20260330172603-f6dd35b42660/go.mod h1:eg3BavLY81DBGfRkdfIu+X1pYrYy0Qo/zTaOaPh3qKs=
+github.com/investigato/ntlmssp v0.0.0-20260330192619-972612c1b17b h1:n8OXeDNGWEBy3Y6o0cWs/TcWtNlwu7WY1oSIJfZ4lkI=
+github.com/investigato/ntlmssp v0.0.0-20260330192619-972612c1b17b/go.mod h1:eg3BavLY81DBGfRkdfIu+X1pYrYy0Qo/zTaOaPh3qKs=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/stretchr/testify v1.11.1 h1:7s2iGBzp5EwR7/aIZr8ao5+dra3wiQyKjjFuvgVKu7U=
