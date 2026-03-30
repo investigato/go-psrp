@@ -101,8 +101,8 @@ func (ps *poolSemaphore) Release() {
 // Stats returns current pool utilization.
 // active: Number of slots currently busy.
 // queued: Number of requests waiting for a slot.
-// max: Queue limit.
-func (ps *poolSemaphore) Stats() (active, queued, max int) {
+// maxQueue: Queue limit.
+func (ps *poolSemaphore) Stats() (active, queued, maxQueue int) {
 	return len(ps.sem), int(atomic.LoadInt32(&ps.queueSize)), ps.maxSize
 }
 

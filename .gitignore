@@ -7,7 +7,7 @@
 *.log
 # Test binary, built with `go test -c`
 *.test
-
+*.*swp
 # Output of the go coverage tool
 *.out
 coverage.html

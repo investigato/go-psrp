@@ -57,7 +57,9 @@ func NewPureKerberosProvider(cfg PureKerberosConfig, targetSPN string) (*PureKer
 	if err != nil {
 		return nil, fmt.Errorf("load krb5.conf from %s: %w", cfg.Krb5ConfPath, err)
 	}
-
+	if cfg.Realm == "" {
+		cfg.Realm = parseRealm(cfg, conf, targetSPN)
+	}
 	var cl *client.Client
 
 	// 1. Try Keytab
@@ -105,6 +107,24 @@ func NewPureKerberosProvider(cfg PureKerberosConfig, targetSPN string) (*PureKer
 		targetSPN: targetSPN,
 	}, nil
 }
+func parseRealm(cfg PureKerberosConfig, conf *config.Config, spn string) string {
+	// 1. Explicit Realm in config
+	if cfg.Realm != "" {
+		return cfg.Realm
+	}
+
+	// 2. Realm from SPN (after @)
+	if at := strings.LastIndex(spn, "@"); at != -1 && at < len(spn)-1 {
+		return spn[at+1:]
+	}
+
+	// 3. Default realm from krb5.conf
+	if conf.LibDefaults.DefaultRealm != "" {
+		return conf.LibDefaults.DefaultRealm
+	}
+
+	return ""
+}
 
 // Complete returns true if the authentication handshake is complete.
 func (p *PureKerberosProvider) Complete() bool {
@@ -137,9 +157,18 @@ func (p *PureKerberosProvider) generateInitialToken() ([]byte, bool, error) {
 
 	// HTTP Logic (Application Layer Encryption)
 	// 1. Get service ticket
+	// if the targetSPN is WSMAN/... and it FAILS, try HTTP/... as fallback
 	tkt, sessionKey, err := p.client.GetServiceTicket(p.targetSPN)
 	if err != nil {
-		return nil, false, fmt.Errorf("failed to get service ticket: %w", err)
+		if strings.HasPrefix(p.targetSPN, "WSMAN/") {
+			fallbackSPN := "HTTP/" + strings.TrimPrefix(p.targetSPN, "WSMAN/")
+			tkt, sessionKey, err = p.client.GetServiceTicket(fallbackSPN)
+			if err != nil {
+				return nil, false, fmt.Errorf("get service ticket for %s and fallback %s: %w", p.targetSPN, fallbackSPN, err)
+			}
+		} else {
+			return nil, false, fmt.Errorf("get service ticket for %s: %w", p.targetSPN, err)
+		}
 	}
 
 	// 2. Build GSSAPI flags - Integrity + Confidentiality + Mutual

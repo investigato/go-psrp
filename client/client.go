@@ -37,29 +37,6 @@ var (
 	ErrNotConnected = errors.New("client not connected")
 )
 
-const (
-	PsrpShellKey  = "psrp"
-	WinRsShellKey = "winrs"
-)
-
-type ShellType int
-
-const (
-	PsrpShell ShellType = iota
-	WinRsShell
-)
-
-func (s ShellType) String() string {
-	switch s {
-	case PsrpShell:
-		return "PS"
-	case WinRsShell:
-		return "CMD"
-	default:
-		return fmt.Sprintf("Unknown ShellType(%d)", s)
-	}
-}
-
 // AuthType specifies the authentication mechanism.
 type AuthType int
 
@@ -228,7 +205,7 @@ type Config struct {
 	Realm string
 	// Krb5ConfPath is the path to krb5.conf (optional, defaults to /etc/krb5.conf).
 	Krb5ConfPath string
-	KdcIP				string // KDC IP address (optional, auto-discovered via DNS)
+	KdcIP        string // KDC IP address (optional, auto-discovered via DNS)
 	// KeytabPath is the path to the keytab file (optional).
 	KeytabPath string
 	// CCachePath is the path to the credential cache (optional).
@@ -451,9 +428,9 @@ type Client struct {
 
 	transport *transport.HTTPTransport
 	// wsman is the underlying WSMan client (for WSMan transport)
-	wsman       *wsman.Client
-	activeShell string
-	shellType   ShellType
+	wsman *wsman.Client
+	// activeShell string
+
 	// shells        map[string]Shell
 
 	// Message fragmentation
@@ -957,11 +934,6 @@ func (c *Client) SaveState(path string) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	if !c.connected && !c.closed {
-		// If we are just initialized but disconnected, we might still want to save state
-		// if we have enough info (e.g. ShellID/PoolID from previous session)
-	}
-
 	state := &SessionState{
 		PoolID:      c.poolID.String(),
 		SessionID:   c.poolID.String(), // Typically same as PoolID
@@ -1085,9 +1057,6 @@ func New(hostname string, cfg Config) (*Client, error) {
 			authenticator = auth.NewNTLMAuth(creds, auth.WithCBT(cfg.EnableCBT))
 		} else {
 			authenticator = auth.NewNegotiateAuth(provider)
-			if err != nil {
-				return nil, fmt.Errorf("create negotiate auth: %w", err)
-			}
 		}
 	case AuthNTLM:
 		authenticator = auth.NewNTLMAuth(creds, auth.WithCBT(cfg.EnableCBT))
@@ -2603,8 +2572,6 @@ func (c *Client) RecoverPipelineOutput(ctx context.Context, shellID, commandID s
 		if err := c.Reconnect(ctx, shellID); err != nil {
 			return nil, fmt.Errorf("reconnect: %w", err)
 		}
-	} else {
-		// Verify pool is open logic is handled by AdoptPipeline check later
 	}
 
 	// 2. File-Based Recovery (HvSocket)
@@ -2673,8 +2640,7 @@ func (c *Client) RecoverPipelineOutput(ctx context.Context, shellID, commandID s
 		// but we drain others to prevent blocking
 		drainVoid := func(ch <-chan *messages.Message) {
 			defer wg.Done()
-			for range ch {
-			}
+
 		}
 
 		wg.Add(7)

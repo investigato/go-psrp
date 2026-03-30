@@ -9,7 +9,7 @@ require (
 	github.com/alexbrainman/sspi v0.0.0-20250919150558-7d374ff0d59e
 	github.com/investigato/go-psrpcore v0.0.0-20260329162904-6dd837751a8f
 	github.com/investigato/krb5 v0.0.0-20260329162930-a6f69e025591
-	github.com/investigato/ntlmssp v0.0.0-20260329163014-ecc88800ddc7
+	github.com/investigato/ntlmssp v0.0.0-20260330143422-24b81294f67b
 	golang.org/x/sync v0.20.0
 	golang.org/x/term v0.41.0
 )

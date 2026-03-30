@@ -198,15 +198,9 @@ func (t *HTTPTransport) Post(ctx context.Context, url string, body []byte) ([]by
 		return nil, fmt.Errorf("transport: failed to create request: %w", err)
 	}
 	req.Header.Set("Content-Type", ContentTypeSOAP)
-	// actualContentLength := int64(len(body))
-	// fmt.Printf("Content-Length: %d\n", actualContentLength)
-	// req.ContentLength = actualContentLength
-
 	req.Header.Set("User-Agent", "Merton WinRM Client")
-	// req.Header.Set("Accept-Encoding", "identity")
 	req.Header.Set("Accept", "*/*")
-	fmt.Printf("=== SENDING ===\n%s\n===============\n", string(body))
-
+	
 	resp, err := t.client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("transport: request failed: %w", err)

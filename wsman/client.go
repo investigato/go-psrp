@@ -99,7 +99,8 @@ func (c *Client) Create(ctx context.Context, options map[string]string, creation
 	var shellID string
 	if ctxShellID, ok := ctx.Value("ShellID").(string); ok && ctxShellID != "" {
 		shellID = ctxShellID
-		fmt.Printf("ShellID: %s\n", shellID)
+	} else {
+		shellID = strings.ToUpper(uuid.New().String())
 	}
 	var shellBody string
 
@@ -119,13 +120,6 @@ func (c *Client) Create(ctx context.Context, options map[string]string, creation
 
 	}
 
-	// if creationXML != "" {
-	// 	// Flatten the XML into a single line
-	// 	shellBody = `<rsp:Shell ShellId="` + shellID + `" xmlns:rsp="` + NsShell + `"><rsp:InputStreams>stdin pr</rsp:InputStreams><rsp:OutputStreams>stdout</rsp:OutputStreams><creationXml xmlns="http://schemas.microsoft.com/powershell">` + creationXML + `</creationXml></rsp:Shell>`
-	// } else {
-	// 	// Basic WinRS shell
-	// 	shellBody = `<rsp:Shell ShellId="` + shellID + `" xmlns:rsp="` + NsShell + `"><rsp:InputStreams>stdin</rsp:InputStreams>  <rsp:OutputStreams>stdout stderr</rsp:OutputStreams></rsp:Shell>`
-	// }
 	env.WithBody([]byte(shellBody))
 
 	respBody, err := c.sendEnvelope(ctx, env)
@@ -147,7 +141,7 @@ func (c *Client) Create(ctx context.Context, options map[string]string, creation
 
 	// If ResourceURI is empty in response, use the default
 	if epr.ResourceURI == "" {
-		epr.ResourceURI = ResourceURIPowerShell
+		epr.ResourceURI = resourceURI
 	}
 	// If Address is empty, use current endpoint (sanity check)
 	// (Address in response is often just the path or full URL)
@@ -401,7 +395,7 @@ func (c *Client) sendEnvelope(ctx context.Context, env *Envelope) ([]byte, error
 	if err != nil {
 		return nil, fmt.Errorf("marshal envelope: %w", err)
 	}
-
+	fmt.Fprintf(os.Stderr, "DEBUG: Sending Envelope:\n%s\n", string(body))
 	respBody, err := c.transport.Post(ctx, c.endpoint, body)
 	if err != nil {
 		return nil, err

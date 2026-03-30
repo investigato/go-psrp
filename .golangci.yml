@@ -3,36 +3,35 @@ version: "2"
 run:
   timeout: 5m
 
-linters-settings:
-  govet:
-    shadow: true
-  gocyclo:
-    min-complexity: 15
-  dupl:
-    threshold: 100
-  goconst:
-    min-len: 2
-    min-occurrences: 2
-  misspell:
-    locale: US
-  lll:
-    line-length: 120
-  goimports:
-    local-prefixes:
-      - github.com/investigato/go-psrp
-  gocritic:
-    enabled-tags:
-      - diagnostic
-      - experimental
-      - opinionated
-      - performance
-      - style
-    disabled-checks:
-      - wrapperFunc
-      - ifElseChain
-      - octalLiteral
-
 linters:
+  exclusions:
+    rules:
+      # Exclude some linters from running on tests files.
+      - path: _test\.go
+        linters:
+          - gocyclo
+          - errcheck
+          - dupl
+          - gosec
+      # Run some linter only for test files by excluding its issues for everything else.
+      - path-except: _test\.go
+        linters:
+          - forbidigo
+      # Exclude known linters from partially hard-vendored code,
+      # which is impossible to exclude via `nolint` comments.
+      # `/` will be replaced by the current OS file path separator to properly work on Windows.
+      - path: internal/hmac/
+        text: "weak cryptographic primitive"
+        linters:
+          - gosec
+      # Exclude some `staticcheck` messages.
+      - linters:
+          - staticcheck
+        text: "SA9003:"
+      # Exclude `lll` issues for long lines with `go:generate`.
+      - linters:
+          - lll
+        source: "^//go:generate "
   enable:
     - govet
     - revive
@@ -47,8 +46,41 @@ linters:
     - staticcheck
   disable:
     - errcheck
+  settings:
+    govet:
+      enable:
+        - shadow
+    gocyclo:
+      min-complexity: 15
+    dupl:
+      threshold: 100
+    goconst:
+      min-len: 2
+      min-occurrences: 2
+    revive:
+      enable-default-rules: true
+    misspell:
+      locale: US
+    lll:
+      line-length: 120
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - experimental
+        - opinionated
+        - performance
+        - style
+      disabled-checks:
+        - wrapperFunc
+        - ifElseChain
+        - octalLiteral
+
+formatters:
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/investigato/go-psrp
 
 issues:
-  exclude-use-default: false
   max-issues-per-linter: 0
   max-same-issues: 0

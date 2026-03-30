@@ -153,28 +153,7 @@ func (r *CmdStreamResult) Close(ctx context.Context) error {
 	return nil
 }
 
-// ExecuteCmdStream executes a command via WinRS with streaming output.
-// Unlike ExecuteCmd, this returns channels for real-time output processing.
-//
-// The shell is automatically closed when the command completes or context is cancelled.
-// Calling Close() is still recommended to ensure cleanup, but is safe to call multiple times.
-//
-// Example:
-//
-//	stream, err := c.ExecuteCmdStream(ctx, "ping -n 10 localhost")
-//	if err != nil {
-//	    log.Fatal(err)
-//	}
-//	defer stream.Close(ctx)
-//
-//	for {
-//	    select {
-//	    case chunk := <-stream.Stdout:
-//	        fmt.Print(string(chunk))
-//	    case <-stream.Done:
-//	        return
-//	    }
-//	}
+
 func (c *Client) ExecuteCmdStream(ctx context.Context, command string) (*CmdStreamResult, error) {
 	c.logInfo("ExecuteCmdStream called: '%s'", sanitizeScriptForLogging(command))
 
@@ -219,7 +198,7 @@ func (c *Client) ExecuteCmdStream(ctx context.Context, command string) (*CmdStre
 			// Check context cancellation before each receive
 			select {
 			case <-ctx.Done():
-				c.logInfo("winrs: context cancelled, closing stream")
+				c.logInfo("winrs: context canceled, closing stream")
 				return
 			default:
 			}
