@@ -1,4 +1,4 @@
-# go-psrp
+# go-psrp - project mgr notes
 
 High-level PSRP/WinRM client library. Sits on top of go-psrpcore (protocol) and ntlmssp (auth).
 
@@ -10,7 +10,6 @@ wsman/       — WSMan protocol: Client, SOAP envelopes, EPR
 wsman/auth/  — Auth handlers: BasicAuth, NTLMAuth, NegotiateAuth, KerberosProvider
 wsman/transport/ — HTTP transport: HTTPTransport
 winrs/       — WinRS (cmd.exe) shell, separate from PSRP
-hvsocket/    — Hyper-V direct socket (Windows only)
 
 ## Key Types
 
@@ -38,9 +37,9 @@ hvsocket/    — Hyper-V direct socket (Windows only)
 
 ## Auth
 
-`wsman/auth/ntlm.go` — `NTLMAuth` wraps ntlmssp http.Client. Encryption off for testing.
+`wsman/auth/ntlm.go` — `NTLMAuth` wraps ntlmssp http.Client. Encryption is on. PassTheHash available.
 
-`wsman/auth/kerberos.go` — `KerberosProvider` wraps lib/krb5 via spnego. Not yet wired into merton.
+`wsman/auth/kerberos.go` — `KerberosProvider` wraps lib/krb5 via spnego.
 
 ## PSRP Shell Format (PowerShell URI)
 

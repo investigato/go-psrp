@@ -24,6 +24,9 @@ type Credentials struct {
 	// Password is the password for authentication.
 	Password string
 
+	// NTHash is the NT hash for Pass-the-Hash authentication.
+	NTHash []byte
+
 	// Domain is the optional domain for NTLM authentication.
 	Domain string
 }
@@ -43,9 +46,15 @@ func (c *Credentials) Validate() error {
 	if c.Username == "" {
 		return errors.New("username is required")
 	}
-	if c.Password == "" {
-		return errors.New("password is required")
+
+	// should have EITHER password or NTHash
+	if c.Password == "" && len(c.NTHash) == 0 {
+		return errors.New("either password or NTHash is required")
 	}
+	if c.Password != "" && len(c.NTHash) != 0 {
+		return errors.New("cannot specify both password and NTHash")
+	}
+
 	return nil
 }
 

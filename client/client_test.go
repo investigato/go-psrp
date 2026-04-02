@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"os"
 	"testing"
 	"time"
 )
@@ -83,7 +82,7 @@ func TestNewClient_Basic(t *testing.T) {
 	cfg.Username = testUsername
 	cfg.Password = testPassword
 
-	client, err := New("testserver", cfg)
+	client, err := New("testserver", cfg, "")
 	if err != nil {
 		t.Fatalf("New failed: %v", err)
 	}
@@ -105,7 +104,7 @@ func TestNewClient_HTTPS(t *testing.T) {
 	cfg.UseTLS = true
 	cfg.Port = 5986
 
-	client, err := New("testserver", cfg)
+	client, err := New("testserver", cfg, ""	)
 	if err != nil {
 		t.Fatalf("New failed: %v", err)
 	}
@@ -121,7 +120,7 @@ func TestClient_Close(t *testing.T) {
 	cfg.Username = testUsername
 	cfg.Password = testPassword
 
-	client, _ := New("testserver", cfg)
+	client, _ := New("testserver", cfg, "")
 
 	// Close should not panic even without connection
 	err := client.Close(context.Background())
@@ -176,72 +175,13 @@ func TestSemaphoreAcquireRelease(t *testing.T) {
 	}
 }
 
-// TestSaveLoadState verifies session state persistence.
-func TestSaveLoadState(t *testing.T) {
-	tmpDir := t.TempDir()
-	path := tmpDir + "/session.json"
-
-	// Create a dummy client with some state
-	cfg := DefaultConfig()
-	cfg.Username = "user"
-	cfg.Password = "pass"
-	client, err := New("testserver", cfg)
-	if err != nil {
-		t.Fatalf("New failed: %v", err)
-	}
-	client.poolID = [16]byte{1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4} // Dummy GUID
-	client.callID.Set(123)
-
-	// Manually set properties for serialization test
-	client.config.Transport = TransportHvSocket
-	client.config.VMID = "7670090e-58ff-46a0-926c-28aa8b3d4a37"
-	client.config.ConfigurationName = "Microsoft.PowerShell"
-
-	// Save
-	if err := client.SaveState(path); err != nil {
-		t.Fatalf("SaveState failed: %v", err)
-	}
-
-	// Verify file mode (should be 0600)
-	info, err := os.Stat(path)
-	if err != nil {
-		t.Fatalf("Stat failed: %v", err)
-	}
-	if info.Mode().Perm() != 0600 {
-		t.Errorf("File permission = %v, want 0600", info.Mode().Perm())
-	}
-
-	// Load
-	state, err := LoadState(path)
-	if err != nil {
-		t.Fatalf("LoadState failed: %v", err)
-	}
-
-	// Verify content
-	if state.Transport != "hvsocket" {
-		t.Errorf("Transport = %q, want hvsocket", state.Transport)
-	}
-	if state.PoolID != "01020304-0102-0304-0102-030401020304" {
-		t.Errorf("PoolID = %q, want 01020304-0102-0304-0102-030401020304", state.PoolID)
-	}
-	if state.MessageID != 123 {
-		t.Errorf("MessageID = %d, want 123", state.MessageID)
-	}
-	if state.VMID != "7670090e-58ff-46a0-926c-28aa8b3d4a37" {
-		t.Errorf("VMID = %q, want ...", state.VMID)
-	}
-	if state.ServiceID != "Microsoft.PowerShell" {
-		t.Errorf("ServiceID = %q, want Microsoft.PowerShell", state.ServiceID)
-	}
-}
-
 // TestClient_ShellID verifies the ShellID accessor.
 func TestClient_ShellID(t *testing.T) {
 	cfg := DefaultConfig()
 	cfg.Username = testUsername
 	cfg.Password = testPassword
 
-	client, _ := New("testserver", cfg)
+	client, _ := New("testserver", cfg, "")
 
 	// Without backend, should return empty string
 	if got := client.ShellID(); got != "" {
@@ -255,7 +195,7 @@ func TestClient_PoolID(t *testing.T) {
 	cfg.Username = testUsername
 	cfg.Password = testPassword
 
-	client, _ := New("testserver", cfg)
+	client, _ := New("testserver", cfg, "")
 
 	// Initial pool ID is nil UUID
 	if got := client.PoolID(); got != "00000000-0000-0000-0000-000000000000" {
@@ -269,7 +209,7 @@ func TestClient_SetPoolID(t *testing.T) {
 	cfg.Username = testUsername
 	cfg.Password = testPassword
 
-	client, _ := New("testserver", cfg)
+	client, _ := New("testserver", cfg, "")
 
 	// Set valid pool ID
 	validID := "12345678-1234-5678-1234-567812345678"
@@ -293,7 +233,7 @@ func TestClient_IsConnected(t *testing.T) {
 	cfg.Username = testUsername
 	cfg.Password = testPassword
 
-	client, _ := New("testserver", cfg)
+	client, _ := New("testserver", cfg, "")
 
 	// Not connected initially
 	if client.IsConnected() {

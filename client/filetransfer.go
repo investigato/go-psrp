@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"hash"
 	"io"
-	"log/slog"
+
 	"os"
 	"path/filepath"
 	"strings"
@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"github.com/investigato/go-psrpcore/serialization"
-	"golang.org/x/sync/errgroup"
 )
 
 // Buffer pool for chunk allocation (zero-copy optimization)
@@ -138,10 +137,6 @@ func DefaultFileTransferOptionsForTransport(transport TransportType) FileTransfe
 	opts := DefaultFileTransferOptions()
 
 	switch transport {
-	case TransportHvSocket:
-		// HvSocket has no SOAP envelope limit - use larger chunks
-		opts.ChunkSize = 1024 * 1024 // 1MB
-		opts.MaxConcurrency = 4      // Enforce parallel by default for speed
 	case TransportWSMan:
 		// WSMan limited by MaxEnvelopeSizeKb (default 500KB)
 		// 256KB raw = ~341KB Base64, leaving room for SOAP/script overhead
@@ -211,6 +206,41 @@ func sanitizeForPowerShell(s string) string {
 	return strings.ReplaceAll(s, "'", "''")
 }
 
+func getRemoteFileHash(ctx context.Context, c *Client, remotePath string) (string, error) {
+	script := fmt.Sprintf(`(Get-FileHash -Algorithm SHA256 -Path '%s').Hash.ToLower()
+`, remotePath)
+	res, err := c.Execute(ctx, script)
+	if err != nil {
+		return "", fmt.Errorf("failed to execute hash script: %w", err)
+	}
+	if res == nil || len(res.Output) == 0 {
+		return "", fmt.Errorf("no output from hash script")
+	}
+	hashRemote, ok := res.Output[0].(string)
+	if !ok {
+		return "", fmt.Errorf("unexpected output type from hash script")
+	}
+	return hashRemote, nil
+}
+
+func generateChunkScript(remotePath string, chunkB64 string, offset int64) string {
+	remotePathB64 := base64.StdEncoding.EncodeToString([]byte(remotePath))
+	return fmt.Sprintf(`
+	$ErrorActionPreference = 'Stop'
+	try {
+	$p = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('%s'))
+	$bytes = [Convert]::FromBase64String('%s')
+	$stream = [IO.File]::Open($p, [IO.FileMode]::OpenOrCreate, [IO.FileAccess]::Write, [IO.FileShare]::Write)
+	$stream.Seek(%d, [IO.SeekOrigin]::Begin) | Out-Null
+	$stream.Write($bytes, 0, $bytes.Length)
+	$stream.Close()
+	} catch {
+		Write-Error "Failed to write chunk at offset %d: $_"
+		exit 1
+	}
+`, remotePathB64, chunkB64, offset, offset)
+}
+
 // generateInitScript creates the PowerShell script to initialize the destination file.
 // It uses Base64 encoding for the path to prevent command injection.
 // If noOverwrite is true, it fails if the file already exists.
@@ -265,12 +295,6 @@ func (c *Client) CopyFile(ctx context.Context, localPath, remotePath string, opt
 	for _, fn := range opts {
 		fn(&opt)
 	}
-	// HvSocket: 1MB chunks (no envelope limit)
-	if c.IsHvSocket() && opt.MaxConcurrency > 1 {
-		c.logInfo("CopyFile: HvSocket does not support parallel upload; forcing MaxConcurrency=1")
-		opt.MaxConcurrency = 1
-	}
-
 	// Validate paths
 	if err := validatePaths(localPath, remotePath); err != nil {
 		return fmt.Errorf("path validation failed: %w", err)
@@ -294,6 +318,12 @@ func (c *Client) CopyFile(ctx context.Context, localPath, remotePath string, opt
 		return fmt.Errorf("source is not a regular file (mode: %s)", stat.Mode())
 	}
 
+	// Hash: Get file hash to check validity of upload
+	hash := sha256.New()
+	if _, err := io.Copy(hash, file); err != nil {
+		return err
+	}
+	hashSum := hash.Sum(nil)
 	totalSize := stat.Size()
 
 	// Security: Enforce MaxFileSize limit (Resource Exhaustion protection)
@@ -335,753 +365,46 @@ func (c *Client) CopyFile(ctx context.Context, localPath, remotePath string, opt
 		"parallel":    opt.MaxConcurrency > 1 && numChunks > 1,
 	})
 
-	// Determine optimization strategy
-	// If concurrency > 1 and file size > chunk size, use parallel upload
-	// Determine strategy
-	if c.IsHvSocket() {
-		// FORCE SAFE PARALLELISM (2 Workers)
-		// 4 Workers caused crashes. 2 is stable and fast.
-		if opt.MaxConcurrency < 2 {
-			opt.MaxConcurrency = 2
+	// for loop to read file in chunks and send to remote, initial offset is 0
+	offset := int64(0)
+	for offset < totalSize {
+		chunkSize := opt.ChunkSize
+		if offset+int64(chunkSize) > totalSize {
+			chunkSize = int(totalSize - offset)
 		}
-
-		c.logInfo("DEBUG: IsHvSocket=true, Concurrency=%d", opt.MaxConcurrency)
-
-		if opt.MaxConcurrency > 1 {
-			c.logInfo("CopyFile: Using Parallel Streaming for HvSocket (concurrency: %d)", opt.MaxConcurrency)
-			if err := c.copyFileParallelHvSocket(ctx, file, remotePath, opt, totalSize, progress); err != nil {
-				return fmt.Errorf("parallel hvsocket copy: %w", err)
-			}
-			return nil
+		chunk := make([]byte, chunkSize)
+		n, readErr := file.ReadAt(chunk, offset)
+		if readErr != nil && readErr != io.EOF {
+			return fmt.Errorf("failed to read chunk at offset %d: %w", offset, readErr)
 		}
-
-		// Use streaming mode for HvSocket to reduce pipeline creation overhead.
-		// Sequential mode (creating 2000+ pipelines) causes transport instability.
-		// We use 16KB chunks (stable) with balanced yield-wait throttling.
-		if opt.ChunkSize > 16*1024 {
-			opt.ChunkSize = 16 * 1024
+		if n == 0 {
+			break
 		}
-		c.logInfo("CopyFile: Using Streaming upload for HvSocket (chunk_size: %d)", opt.ChunkSize)
-		if err := c.copyFileStreaming(ctx, file, remotePath, opt, totalSize, progress); err != nil {
-			return err
+		chunk = chunk[:n]
+		chunkB64 := base64.StdEncoding.EncodeToString(chunk)
+		script := generateOffsetWriteScript(remotePath, offset, chunkB64)
+		if _, scriptErr := c.Execute(ctx, script); scriptErr != nil {
+			return fmt.Errorf("failed to write chunk at offset %d: %w", offset, scriptErr)
 		}
-		return nil
+		offset += int64(n)
+		// Update progress
+		if progress != nil {
+			progress.update(int64(n))
+		}
 	}
-
-	if opt.MaxConcurrency > 1 && numChunks > 1 {
-		if err := c.copyFileParallel(ctx, file, remotePath, opt, totalSize, progress); err != nil {
-			return err
-		}
-		return nil
+	// verify hash of local and remote regardless
+	remoteHash, hashErr := getRemoteFileHash(ctx, c, remotePath)
+	if hashErr != nil {
+		return fmt.Errorf("failed to verify file hash: %w", hashErr)
+	}
+	remoteHashComp := strings.TrimSpace(strings.ToLower(remoteHash))
+	if fmt.Sprintf("%x", hashSum) != remoteHashComp {
+		return fmt.Errorf("hash mismatch after transfer: local %x, remote %x", hashSum, remoteHash)
 	}
 
 	// Use streaming mode for serial/small transfers
 	// Streaming uses a single pipeline and feeds chunks as input, avoiding pipeline creation overhead.
-	if err := c.copyFileStreaming(ctx, file, remotePath, opt, totalSize, progress); err != nil {
-		return err
-	}
 
-	return nil
-}
-
-// copyFileStreaming uploads a file using a single streaming pipeline.
-// This is more efficient than chunked uploads as it avoids per-chunk overhead (pipeline creation).
-// It streams file chunks as pipeline input to a script that writes them to the destination.
-func (c *Client) copyFileStreaming(ctx context.Context, file *os.File, remotePath string, opt FileTransferOptions, totalSize int64, progress *transferProgress) error {
-	chunkSize := int64(opt.ChunkSize)
-	numChunks := (totalSize + chunkSize - 1) / chunkSize
-
-	c.logInfo("CopyFile: Streaming upload (chunks: %d, size: %d, chunk_size: %d)", numChunks, totalSize, chunkSize)
-
-	// Prepare script that reads from input stream
-	pathB64 := base64.StdEncoding.EncodeToString([]byte(remotePath))
-	// Prepare file creation command (overwrite vs check)
-	createCmd := "$s = [System.IO.File]::Create($path)"
-	if opt.NoOverwrite {
-		// Use Open with CreateNew mode to atomically fail if file exists
-		createCmd = "$s = [System.IO.File]::Open($path, [System.IO.FileMode]::CreateNew, [System.IO.FileAccess]::Write)"
-	}
-
-	// Script: Create file, read Base64 from input, write to file
-	script := fmt.Sprintf(`
-		$ErrorActionPreference = 'Stop'
-		$path = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('%s'))
-		%s
-		$s.SetLength(%d)
-		try {
-			$input | ForEach-Object {
-				$s.Write($_, 0, $_.Length)
-			}
-		} finally {
-			$s.Close()
-		}
-	`, pathB64, createCmd, totalSize)
-
-	// Start streaming pipeline
-	sr, err := c.ExecuteStreamWithInput(ctx, script)
-	if err != nil {
-		return fmt.Errorf("start stream: %w", err)
-	}
-	// Drain all output channels concurrently to prevent back-pressure.
-	// Sequential draining blocks on earlier channels (e.g. Output) while later
-	// channels (e.g. Progress) fill up, causing HandleMessage buffer timeouts
-	// that kill the pipeline.
-	doneDrain := make(chan struct{})
-	go func() {
-		defer close(doneDrain)
-		var wg sync.WaitGroup
-		wg.Add(7)
-		go func() {
-			defer wg.Done()
-			for range sr.Output {
-			}
-		}()
-		go func() {
-			defer wg.Done()
-			for range sr.Errors {
-			}
-		}()
-		go func() {
-			defer wg.Done()
-			for range sr.Warnings {
-			}
-		}()
-		go func() {
-			defer wg.Done()
-			for range sr.Verbose {
-			}
-		}()
-		go func() {
-			defer wg.Done()
-			for range sr.Debug {
-			}
-		}()
-		go func() {
-			defer wg.Done()
-			for range sr.Progress {
-			}
-		}()
-		go func() {
-			defer wg.Done()
-			for range sr.Information {
-			}
-		}()
-		wg.Wait()
-	}()
-
-	// Prepare hasher if verification enabled
-	var hasher hash.Hash
-	if opt.VerifyChecksum {
-		hasher = sha256.New()
-	}
-
-	// Send chunks in background or current goroutine?
-	// Sending blocks on flow control, so we should do it here, but need to monitor output/errors?
-	// StreamResult channels are buffered. If script fails, it might send error output.
-	// But ExecuteStreamWithInput is non-blocking start.
-	// We can loop send here.
-
-	// Use a function to handle sending so we can defer CloseInput
-	sendErr := func() error {
-		defer func() {
-			if err := sr.CloseInput(ctx); err != nil {
-				c.logWarn("CopyFile: Failed to close input: %v", err)
-			}
-		}()
-
-		buf := make([]byte, chunkSize)
-		for i := int64(0); i < numChunks; i++ {
-			// Check context
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			default:
-			}
-
-			n, err := file.Read(buf)
-			if err != nil && err != io.EOF {
-				return fmt.Errorf("read chunk %d: %w", i, err)
-			}
-			if n == 0 {
-				break
-			}
-
-			chunk := buf[:n]
-
-			// Hash (before encoding)
-			if opt.VerifyChecksum {
-				hasher.Write(chunk)
-			}
-
-			// Send raw bytes to pipeline (efficiently serialized as <BA>)
-			if err := sr.SendInput(ctx, chunk); err != nil {
-				return fmt.Errorf("send chunk %d: %w", i, err)
-			}
-
-			// Throttle HvSocket to prevent overwhelming the transport.
-			// 2ms Yield-Wait failed at 58%. 10ms was stable but slow.
-			// We settle on 5ms Yield-Wait. This provides enough drain time for stability
-			// while offering ~2.5x the throughput of the 10ms baseline.
-			if c.IsHvSocket() {
-				start := time.Now()
-				target := 10 * time.Millisecond // Increased to 10ms for safety
-				for time.Since(start) < target {
-					// Yield processor to allow transport housekeeping
-					time.Sleep(0)
-				}
-			}
-
-			// Update progress
-			if progress != nil {
-				progress.update(int64(n))
-			}
-
-			// Log occasionally (every 100 chunks = ~1.6MB to reduce IO overhead)
-			if (i+1)%100 == 0 || i == numChunks-1 {
-				c.logInfo("CopyFile: Streamed chunk %d/%d", i+1, numChunks)
-			}
-		}
-
-		// Ensure progress shows 100% (fix for UI stopping early)
-		if progress != nil {
-			progress.mu.Lock()
-			remaining := totalSize - progress.bytesTransferred
-			progress.mu.Unlock()
-			if remaining > 0 {
-				// Update with the delta to reach 100%
-				progress.update(remaining)
-			}
-		}
-
-		return nil
-	}()
-
-	// Wait for pipeline to complete (catches script errors)
-	// If send failed, we might want to Cancel?
-	if sendErr != nil {
-		c.logError("CopyFile: Send failed, canceling pipeline: %v", sendErr)
-		sr.Cancel()
-	}
-
-	// Wait for script completion with a timeout to avoid hanging.
-	waitTimeout := time.Duration(numChunks) * opt.ChunkTimeout
-	if waitTimeout == 0 {
-		waitTimeout = 10 * time.Minute
-	}
-	if waitTimeout < 2*time.Minute {
-		waitTimeout = 2 * time.Minute
-	}
-	waitCtx, waitCancel := context.WithTimeout(ctx, waitTimeout)
-	waitErrCh := make(chan error, 1)
-	go func() {
-		waitErrCh <- sr.Wait()
-	}()
-	var waitErr error
-	select {
-	case waitErr = <-waitErrCh:
-	case <-waitCtx.Done():
-		waitErr = fmt.Errorf("stream execution timeout after %s", waitTimeout)
-		sr.Cancel()
-	}
-	waitCancel()
-	<-doneDrain
-
-	if sendErr != nil {
-		// If send failed because pipeline failed, prefer the pipeline error (waitErr)
-		// because it contains the actual script exception (e.g. "File exists")
-		if waitErr != nil && strings.Contains(sendErr.Error(), "invalid pipeline state") {
-			return fmt.Errorf("transfer failed: %w", waitErr)
-		}
-		return sendErr
-	}
-	if waitErr != nil {
-		c.logSecurityEvent("FILE_TRANSFER_FAILED", map[string]interface{}{
-			"operation": "CopyFile",
-			"phase":     "stream_wait",
-			"error":     waitErr.Error(),
-		})
-		return fmt.Errorf("stream execution failed: %w", waitErr)
-	}
-
-	// Verify Checksum if enabled
-	if opt.VerifyChecksum {
-		c.logInfo("CopyFile: Verifying checksum...")
-		localHash := hex.EncodeToString(hasher.Sum(nil))
-
-		verifyScript := fmt.Sprintf(`
-			$ErrorActionPreference = 'Stop'
-			$path = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('%s'))
-			(Get-FileHash -Algorithm SHA256 -Path $path).Hash
-		`, pathB64)
-
-		res, err := c.Execute(ctx, verifyScript)
-		if err != nil {
-			return fmt.Errorf("verify checksum execution failed: %w", err)
-		}
-
-		var remoteHash string
-		if res != nil && len(res.Output) > 0 {
-			if s, ok := res.Output[0].(string); ok {
-				remoteHash = strings.TrimSpace(s)
-			} else if psObj, ok := res.Output[0].(*serialization.PSObject); ok {
-				remoteHash = strings.TrimSpace(psObj.ToString)
-			} else {
-				remoteHash = fmt.Sprintf("%v", res.Output[0])
-			}
-		}
-
-		if !strings.EqualFold(localHash, remoteHash) {
-			c.logSecurityEvent("FILE_TRANSFER_FAILED", map[string]interface{}{
-				"operation":   "CopyFile",
-				"phase":       "checksum_mismatch",
-				"local_hash":  localHash,
-				"remote_hash": remoteHash,
-			})
-			return fmt.Errorf("checksum mismatch! local: %s, remote: %s", localHash, remoteHash)
-		}
-		c.logInfo("CopyFile: Checksum verified (SHA256: %s)", localHash)
-	}
-
-	// Security Event: Log completion
-	c.logSecurityEvent("FILE_TRANSFER_COMPLETE", map[string]interface{}{
-		"operation":   "CopyFile",
-		"destination": remotePath,
-		"bytes_sent":  totalSize,
-		"status":      "success",
-		"verified":    opt.VerifyChecksum,
-		"mode":        "streaming",
-	})
-	c.logInfo("CopyFile: Transfer complete (%d bytes, streaming)", totalSize)
-
-	return nil
-}
-
-// copyFileParallel uploads a file using concurrent pipelines.
-// This is faster for large files as it utilizes multiple connections.
-func (c *Client) copyFileParallel(ctx context.Context, file *os.File, remotePath string, opt FileTransferOptions, totalSize int64, progress *transferProgress) error {
-	chunkSize := int64(opt.ChunkSize)
-	numChunks := (totalSize + chunkSize - 1) / chunkSize
-
-	c.logInfo("CopyFile: Parallel upload (chunks: %d, size: %d, concurrency: %d)", numChunks, totalSize, opt.MaxConcurrency)
-
-	// Step 1: Pre-allocate file on server
-	preallocScript := generatePreallocateScript(remotePath, totalSize)
-	if _, err := c.Execute(ctx, preallocScript); err != nil {
-		c.logSecurityEvent("FILE_TRANSFER_FAILED", map[string]interface{}{
-			"operation": "CopyFile",
-			"phase":     "preallocate",
-			"error":     err.Error(),
-		})
-		if strings.Contains(err.Error(), "Access is denied") {
-			return fmt.Errorf("initialization failed: permission denied")
-		}
-		return fmt.Errorf("initialization failed: remote operation error")
-	}
-
-	// Step 2: Upload chunks in parallel using a worker pool
-	// We use a fixed number of workers to prevent connection storms and excessive auth.
-	// Each worker maintains its own cloned client (and thus its own Authenticated Transport).
-	concurrency := opt.MaxConcurrency
-	if concurrency > int(numChunks) {
-		concurrency = int(numChunks)
-	}
-
-	// Job channel
-	type chunkJob struct {
-		index  int64
-		offset int64
-	}
-	jobCh := make(chan chunkJob, numChunks)
-	for i := int64(0); i < numChunks; i++ {
-		jobCh <- chunkJob{index: i, offset: i * chunkSize}
-	}
-	close(jobCh)
-
-	// Result map for checksum
-	type chunkResult struct {
-		index int64
-		data  []byte
-	}
-	chunkResults := make(map[int64]chunkResult)
-	var resultsMu sync.Mutex
-
-	g, ctx := errgroup.WithContext(ctx)
-
-	// Semaphore to limit concurrency (re-added for shared client)
-	sem := make(chan struct{}, opt.MaxConcurrency)
-
-	for w := 0; w < concurrency; w++ {
-		// Capture worker ID for logging/debugging
-		workerID := w
-
-		g.Go(func() error {
-			// Acquire semaphore to limit concurrency
-			select {
-			case sem <- struct{}{}:
-				defer func() { <-sem }()
-			case <-ctx.Done():
-				return ctx.Err()
-			}
-
-			// Reusable buffer for this worker
-			buf := make([]byte, chunkSize)
-
-			// Create a worker for this goroutine
-			// This ensures each worker gets its own Authentication Context to avoid race conditions.
-			workerClient, err := c.CreateWorker()
-			if err != nil {
-				return fmt.Errorf("create worker %d: %w", workerID, err)
-			}
-			if err := workerClient.Connect(ctx); err != nil {
-				if err := workerClient.Close(context.Background()); err != nil {
-					slog.Warn("Failed to close worker client", "error", err)
-				}
-				return fmt.Errorf("connect worker %d: %w", workerID, err)
-			}
-			defer workerClient.Close(context.Background())
-
-			for job := range jobCh {
-				// Check cancellation
-				if ctx.Err() != nil {
-					return ctx.Err()
-				}
-
-				// Read chunk
-				// Use ReadAt on the shared file handle (thread-safe on *os.File)
-				n, err := file.ReadAt(buf, job.offset)
-				if err != nil && err != io.EOF {
-					return fmt.Errorf("read chunk %d: %w", job.index, err)
-				}
-				if n == 0 {
-					continue
-				}
-				chunkData := buf[:n]
-
-				// Encode chunk
-				chunkB64 := base64.StdEncoding.EncodeToString(chunkData)
-
-				// Validate Base64 size
-				if len(chunkB64) > maxChunkBase64Size {
-					return fmt.Errorf("chunk %d too large after encoding: %d bytes (limit: %d)", job.index, len(chunkB64), maxChunkBase64Size)
-				}
-
-				// Write chunk at specific offset
-				script := generateOffsetWriteScript(remotePath, job.offset, chunkB64)
-
-				// Use per-chunk timeout - each chunk gets its own deadline
-				chunkTimeout := opt.ChunkTimeout
-				if chunkTimeout == 0 {
-					chunkTimeout = 60 * time.Second
-				}
-				chunkCtx, chunkCancel := context.WithTimeout(ctx, chunkTimeout)
-
-				// Execute using dedicated worker client
-				_, execErr := workerClient.Execute(chunkCtx, script)
-				chunkCancel()
-
-				if execErr != nil {
-					c.logSecurityEvent("FILE_TRANSFER_FAILED", map[string]interface{}{
-						"operation": "CopyFile",
-						"phase":     "upload_chunk",
-						"chunk":     job.index,
-						"error":     execErr.Error(),
-					})
-					return fmt.Errorf("failed to upload chunk %d (worker %d): %w", job.index, workerID, execErr)
-				}
-
-				// Store for later hash computation (in order)
-				if opt.VerifyChecksum {
-					// Make a copy of the chunk data because buffer is reused
-					dataCopy := make([]byte, len(chunkData))
-					copy(dataCopy, chunkData)
-
-					resultsMu.Lock()
-					chunkResults[job.index] = chunkResult{index: job.index, data: dataCopy}
-					resultsMu.Unlock()
-				}
-
-				// Update progress
-				if progress != nil {
-					progress.update(int64(n))
-				}
-
-				// Log progress (but not too often to avoid spam)
-				if (job.index+1)%10 == 0 || job.index == numChunks-1 {
-					c.logInfo("CopyFile: Uploaded chunk %d/%d", job.index+1, numChunks)
-				}
-			}
-			return nil
-		})
-	}
-
-	// Wait for all chunks to complete
-	if err := g.Wait(); err != nil {
-		return err
-	}
-	// ... (rest of function omitted for brevity, logic continues below) ...
-
-	if opt.VerifyChecksum {
-		// ... checksum verification logic ...
-	}
-	return nil
-}
-
-// copyFileParallelHvSocket implements separated high-performance streaming for HvSocket.
-// It splits the file into N large segments and streams them concurrently using long-lived
-// pipelines (Runspaces), avoiding the overhead of per-chunk scripts while maximizing
-// transport saturation.
-func (c *Client) copyFileParallelHvSocket(ctx context.Context, file *os.File, remotePath string, opt FileTransferOptions, totalSize int64, progress *transferProgress) error {
-	// 1. Segmentation
-	concurrency := opt.MaxConcurrency
-	if totalSize < int64(concurrency*1024*1024) {
-		// If file is small (< 1MB per worker), reduce concurrency
-		concurrency = int(totalSize / (1024 * 1024))
-		if concurrency < 1 {
-			concurrency = 1
-		}
-	}
-	segmentSize := totalSize / int64(concurrency)
-
-	c.logInfo("ParallelHvSocket: Starting %d streams (segment size: %d bytes)", concurrency, segmentSize)
-
-	// RATE LIMITING STRATEGY
-	// Strategy v14: Strict 1-Chunk Pacing.
-	// Issue: 256KB burst allows multi-chunk bursts which crash transport.
-	// Fix: Capacity (65KB) = 1 Chunk + Epsilon.
-	// Rate: 4 MB/s.
-	// Result: Forces "Send 1 Chunk -> Wait" cycle. Rock stable.
-	globalLimiter := newTokenBucket(4*1024*1024, 65*1024)
-
-	// 2. Pre-allocate remote file (using FileShare.ReadWrite to allow concurrent writes)
-	// We use Create to overwrite/create, but Close immediately.
-	// Workers will Open with FileShare.ReadWrite.
-	remotePathB64 := base64.StdEncoding.EncodeToString([]byte(remotePath))
-	preallocScript := fmt.Sprintf(`
-		$ErrorActionPreference = 'Stop'
-		$path = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('%s'))
-		$f = [System.IO.File]::Create($path)
-		$f.SetLength(%d)
-		$f.Close()
-	`, remotePathB64, totalSize)
-
-	if _, err := c.Execute(ctx, preallocScript); err != nil {
-		return fmt.Errorf("pre-allocation failed: %w", err)
-	}
-
-	// 3. Launch Workers
-	g, ctx := errgroup.WithContext(ctx)
-
-	for i := 0; i < concurrency; i++ {
-		// Stagger worker startup to avoid auth storm (Token Auth Failure)
-		if i > 0 {
-			time.Sleep(500 * time.Millisecond)
-		}
-
-		workerIndex := i
-		startOffset := int64(i) * segmentSize
-		endOffset := startOffset + segmentSize
-		if i == concurrency-1 {
-			endOffset = totalSize // Last worker takes the rest
-		}
-		length := endOffset - startOffset
-
-		g.Go(func() error {
-			// Create dedicated worker client (new Runspace)
-			workerClient, err := c.CreateWorker()
-			if err != nil {
-				return fmt.Errorf("worker %d create failed: %w", workerIndex, err)
-			}
-
-			// Retry Loop for Connection (Auth Storm Protection)
-			var connectErr error
-			for attempt := 1; attempt <= 3; attempt++ {
-				if attempt > 1 {
-					c.logInfo("Worker %d: Retrying connection (attempt %d/3)...", workerIndex, attempt)
-					time.Sleep(time.Duration(attempt) * time.Second)
-				}
-
-				if err := workerClient.Connect(ctx); err != nil {
-					connectErr = err
-					// Check for specific auth errors if possible, but retry generally helps
-					continue
-				}
-				connectErr = nil
-				break
-			}
-
-			if connectErr != nil {
-				if err := workerClient.Close(context.Background()); err != nil {
-					slog.Warn("Failed to close worker client", "error", err)
-				}
-				return fmt.Errorf("worker %d connect failed after 3 attempts: %w", workerIndex, connectErr)
-			}
-			defer workerClient.Close(context.Background())
-
-			// Worker Script: Open Shared, Seek, Write from Input
-			// Note: FileShare.ReadWrite is critical here.
-			script := fmt.Sprintf(`
-				$ErrorActionPreference = 'Stop'
-				$path = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('%s'))
-				$fs = [System.IO.File]::Open($path, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Write, [System.IO.FileShare]::ReadWrite)
-				$fs.Seek(%d, [System.IO.SeekOrigin]::Begin) | Out-Null
-				try {
-					$input | ForEach-Object {
-						$fs.Write($_, 0, $_.Length)
-					}
-				} finally {
-					$fs.Close()
-				}
-			`, remotePathB64, startOffset)
-
-			// Start Stream
-			sr, err := workerClient.ExecuteStreamWithInput(ctx, script)
-			if err != nil {
-				return fmt.Errorf("worker %d start stream failed: %w", workerIndex, err)
-			}
-
-			// Drain all output channels concurrently to prevent back-pressure.
-			// Sequential draining blocks on earlier channels (e.g. Output) while
-			// later channels (e.g. Progress) fill up, causing HandleMessage
-			// buffer timeouts that kill the pipeline.
-			go func() {
-				var wg sync.WaitGroup
-				wg.Add(6)
-				go func() {
-					defer wg.Done()
-					for range sr.Output {
-					}
-				}()
-				go func() {
-					defer wg.Done()
-					for range sr.Errors {
-					}
-				}()
-				go func() {
-					defer wg.Done()
-					for range sr.Verbose {
-					}
-				}()
-				go func() {
-					defer wg.Done()
-					for range sr.Debug {
-					}
-				}()
-				go func() {
-					defer wg.Done()
-					for range sr.Progress {
-					}
-				}()
-				go func() {
-					defer wg.Done()
-					for range sr.Information {
-					}
-				}()
-				wg.Wait()
-			}()
-
-			// Send Loop
-			chunkSize := int64(64 * 1024) // 64KB chunks for efficiency
-			numChunks := (length + chunkSize - 1) / chunkSize
-			buf := make([]byte, chunkSize)
-
-			errSend := func() error {
-				defer sr.CloseInput(ctx)
-
-				for k := int64(0); k < numChunks; k++ {
-					if ctx.Err() != nil {
-						return ctx.Err()
-					}
-
-					// Throttle BEFORE reading/sending
-					globalLimiter.Wait(int(chunkSize))
-
-					// ReadAt is thread-safe on *os.File
-					readOffset := startOffset + (k * chunkSize)
-					// Calculate read size (clamp to length)
-					toRead := chunkSize
-					remaining := length - (k * chunkSize)
-					if toRead > remaining {
-						toRead = remaining
-					}
-
-					n, err := file.ReadAt(buf[:toRead], readOffset)
-					if err != nil && err != io.EOF {
-						return fmt.Errorf("worker %d read failed: %w", workerIndex, err)
-					}
-					if n == 0 {
-						break
-					}
-
-					// Send Input
-					if err := sr.SendInput(ctx, buf[:n]); err != nil {
-						return fmt.Errorf("worker %d send failed: %w", workerIndex, err)
-					}
-
-					// Throttling handled by globalLimiter.Wait() at top of loop.
-
-					if progress != nil {
-						progress.update(int64(n))
-					}
-				}
-				return nil
-			}()
-
-			if errSend != nil {
-				// Always call Wait() to capture the actual server-side error
-				// and release resources (semaphore). SendInput may fail with
-				// "state=Failed" but the root cause is in the pipeline error.
-				waitErr := sr.Wait()
-				if waitErr != nil {
-					return fmt.Errorf("worker %d send failed: %w (server: %v)", workerIndex, errSend, waitErr)
-				}
-				return errSend
-			}
-
-			// Wait for script completion
-			if err := sr.Wait(); err != nil {
-				return fmt.Errorf("worker %d script error: %w", workerIndex, err)
-			}
-			return nil
-		})
-	}
-
-	if err := g.Wait(); err != nil {
-		return err
-	}
-
-	// Force 100% progress update (UI fix)
-	if progress != nil {
-		progress.mu.Lock()
-		remaining := totalSize - progress.bytesTransferred
-		progress.mu.Unlock()
-		if remaining > 0 {
-			progress.update(remaining)
-		}
-	}
-
-	// Verify Checksum
-	if opt.VerifyChecksum {
-		// Re-use existing verification logic by copying it or calling a helper?
-		// For now, duplicate the verification block to ensure isolation and modifying it slightly if needed.
-		// Actually, let's call a verification helper if I implement one, but inline is safer/faster now.
-		c.logInfo("ParallelHvSocket: Verifying checksum...")
-		hasher := sha256.New()
-		if _, err := io.Copy(hasher, file); err != nil { // Re-read file? Or should have hashed during read?
-			// Parallel read hashing is hard. Let's re-read the file locally.
-			// Ideally we shouldn't re-read 80MB.
-			// But opt.VerifyChecksum implies we want to verify.
-			// The original CopyFile hashes as it reads.
-			// Here we are reading randomly.
-			// Let's just re-read sequentially for hash if needed, or skip local hash if unnecessary optimization.
-			return fmt.Errorf("VerifyChecksum not fully optimized for parallel yet - skipped for speed")
-		}
-		// ... Actually, the user didn't ask for checksum in the test command. Checksum adds complexity.
-		// I will omit checksum logic for now unless requested, or just leave it empty.
-		// Wait, user command in previous turns didn't use -checksum.
-		// Let's stick to the core requirement: Isolation and Speed.
-	}
-
-	c.logInfo("ParallelHvSocket: Transfer complete")
 	return nil
 }
 

@@ -131,12 +131,6 @@ func TestDefaultFileTransferOptionsForTransport(t *testing.T) {
 	if wsmanOpts.ChunkSize != 256*1024 {
 		t.Errorf("WSMan: Expected ChunkSize 256KB, got %d", wsmanOpts.ChunkSize)
 	}
-
-	// HvSocket should use 1MB (no envelope limit)
-	hvOpts := DefaultFileTransferOptionsForTransport(TransportHvSocket)
-	if hvOpts.ChunkSize != 1024*1024 {
-		t.Errorf("HvSocket: Expected ChunkSize 1MB, got %d", hvOpts.ChunkSize)
-	}
 }
 
 func TestTransferProgress_Update(t *testing.T) {

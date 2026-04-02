@@ -63,7 +63,7 @@ func TestClient_Keepalive(t *testing.T) {
 		Password:          "pass",
 	}
 
-	c, err := New("host", cfg)
+	c, err := New("host", cfg, "")
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
 	}

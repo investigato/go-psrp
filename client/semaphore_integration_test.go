@@ -28,7 +28,7 @@ func TestIntegration_SemaphoreConcurrency(t *testing.T) {
 			return strings.NewReader(""), func() {}, nil
 		},
 	}
-	c, err := New("localhost", cfg)
+	c, err := New("localhost", cfg,"error")
 	if err != nil {
 		t.Fatalf("New() failed: %v", err)
 	}

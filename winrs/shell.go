@@ -18,8 +18,6 @@ type shellConfig struct {
 	noProfile   bool
 }
 
-
-
 // Option configures a Shell.
 type Option func(*shellConfig)
 
@@ -75,7 +73,9 @@ func NewShell(ctx context.Context, transport Transport, opts ...Option) (*Shell,
 	options := map[string]string{
 		"ResourceURI": wsman.ResourceURIWinRS,
 	}
-
+	if cfg.workingDir != "" {
+		options["WorkingDirectory"] = cfg.workingDir
+	}
 	if cfg.noProfile {
 		options["WINRS_NOPROFILE"] = "TRUE"
 	}

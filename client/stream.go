@@ -43,7 +43,7 @@ func (sr *StreamResult) Cancel() {
 // that provides access to output as it is produced.
 // The caller is responsible for consuming the output channels and calling Wait().
 func (c *Client) ExecuteStream(ctx context.Context, script string) (*StreamResult, error) {
-	return c.executeStreamInternal(ctx, script, true)
+	return c.executeStreamInternal(ctx, script, false)
 }
 
 // ExecuteStreamWithInput runs a PowerShell script asynchronously and returns a StreamResult
@@ -71,10 +71,19 @@ func (c *Client) executeStreamInternal(ctx context.Context, script string, close
 		sem.Release()
 		return nil, err
 	}
+	//  Add a deferReceive bool path that skips the go c.runPipelineReceive(...) call and
+	//   instead stores pipelineTransport on the StreamResult.
 
+	var deferReceive bool = false
 	// Start per-pipeline receive loop (for WSMan) or use dispatch loop (for HvSocket)
-	if pipelineTransport != nil {
-		go c.runPipelineReceive(ctx, pipelineTransport, psrpPipeline)
+	if !deferReceive {
+		if pipelineTransport != nil {
+			go c.runPipelineReceive(ctx, pipelineTransport, psrpPipeline)
+		}
+	} else {
+		// Store pipelineTransport on StreamResult for caller to use with BeginReceive()
+		psrpPipelineTransport := pipelineTransport
+		_ = psrpPipelineTransport // Avoid unused variable warning if not used in this code path
 	}
 	// For HvSocket: dispatch loop was started in Connect()
 

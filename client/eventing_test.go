@@ -91,7 +91,7 @@ func TestSubscribe_Lifecycle(t *testing.T) {
 		Password: "pass",
 		AuthType: AuthBasic,
 	}
-	c, err := New("http://server", cfg)
+	c, err := New("http://server", cfg, "")
 	if err != nil {
 		t.Fatalf("NewClient: %v", err)
 	}
@@ -144,7 +144,7 @@ func TestSubscribe_InputValidation(t *testing.T) {
 		Password: "pass",
 		AuthType: AuthBasic,
 	}
-	c, _ := New("http://server", cfg)
+	c, _ := New("http://server", cfg, "")
 
 	// Huge query
 	hugeQuery := strings.Repeat("A", 20000)

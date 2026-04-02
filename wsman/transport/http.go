@@ -93,8 +93,8 @@ func NewHTTPTransport(opts ...HTTPTransportOption) *HTTPTransport {
 				// Increase connection limits for concurrent command execution
 				// Increase connection limits for concurrent command execution
 				// We need enough connections to support high concurrency (e.g. 50 threads)
-				MaxIdleConns:        100,
-				MaxIdleConnsPerHost: 50,
+				MaxIdleConns:        25,
+				MaxIdleConnsPerHost: 15,
 				MaxConnsPerHost:     1,
 				// Longer idle timeout for NTLM sessions
 				IdleConnTimeout: 90 * time.Second,

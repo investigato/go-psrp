@@ -111,6 +111,12 @@ type Body struct {
 	Content []byte `xml:",innerxml"`
 }
 
+// WorkingDirectory applies XML elements with their namespaces to the body. Namespace, element name, and value are specified in the struct fields.
+type WorkingDirectory struct {
+	XMLName string `xml:"rsp:WorkingDirectory"`
+	Value   string `xml:",chardata"`
+}
+
 // NewEnvelope creates a new SOAP envelope with required namespace declarations.
 func NewEnvelope() *Envelope {
 	return &Envelope{
@@ -135,6 +141,17 @@ func (e *Envelope) WithAction(action string) *Envelope {
 // WithTo sets the WS-Addressing To header (the endpoint URL).
 func (e *Envelope) WithTo(to string) *Envelope {
 	e.Header.To = to
+	return e
+}
+
+// WithWorkingDir adds the working directory to the body as an XML element.
+func (e *Envelope) WithWorkingDir(dir string) *Envelope {
+	wd := WorkingDirectory{
+		XMLName: "rsp:WorkingDirectory",
+		Value:   dir,
+	}
+	content, _ := xml.Marshal(wd)
+	e.Body.Content = content
 	return e
 }
 

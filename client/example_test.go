@@ -19,7 +19,7 @@ func ExampleNew() {
 	cfg.InsecureSkipVerify = false // Production setting
 
 	// 2. Create the client
-	c, err := client.New("server.example.com", cfg)
+	c, err := client.New("server.example.com", cfg, "")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -59,7 +59,7 @@ func ExampleClient_Execute_errorHandling() {
 	cfg := client.DefaultConfig()
 	cfg.Username = "user"
 	cfg.Password = "pass"
-	c, err := client.New("server.local", cfg)
+	c, err := client.New("server.local", cfg, "")
 	if err != nil {
 		log.Fatal(err)
 	}

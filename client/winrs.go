@@ -20,10 +20,10 @@ type CmdResult struct {
 // ExecuteCmd executes a command via WinRS (cmd.exe) instead of PowerShell.
 // This is faster for simple commands as it avoids PSRP protocol overhead.
 //
-// The command string is passed directly to cmd.exe. For example:
+// The command string is passed without cmd.exe. For example:
 //
 //	result, err := c.ExecuteCmd(ctx, "dir /b C:\\Windows")
-func (c *Client) ExecuteCmd(ctx context.Context, command string) (*CmdResult, error) {
+func (c *Client) ExecuteCmd(ctx context.Context, command string, options ...winrs.Option) (*CmdResult, error) {
 	c.logInfo("ExecuteCmd called: '%s'", sanitizeScriptForLogging(command))
 
 	// Security Logging (NIST SP 800-92) - Log command attempt
@@ -45,7 +45,7 @@ func (c *Client) ExecuteCmd(ctx context.Context, command string) (*CmdResult, er
 	}
 
 	// Create a temporary WinRS shell
-	shell, err := winrs.NewShell(ctx, c.wsman)
+	shell, err := winrs.NewShell(ctx, c.wsman, options...)
 	if err != nil {
 		if c.securityLogger != nil {
 			c.securityLogger.LogCommand("winrs_execute", OutcomeFailure, SeverityError, map[string]any{
@@ -61,7 +61,7 @@ func (c *Client) ExecuteCmd(ctx context.Context, command string) (*CmdResult, er
 		}
 	}()
 
-	// Run the command through cmd.exe /c
+	// Run the command without cmd.exe /c since we're passing the full command line directly
 	proc, err := shell.Run(ctx, "cmd.exe", "/c", command)
 	if err != nil {
 		if c.securityLogger != nil {
@@ -93,6 +93,83 @@ func (c *Client) ExecuteCmd(ctx context.Context, command string) (*CmdResult, er
 		ExitCode: proc.ExitCode(),
 	}, nil
 }
+
+// // ExecuteCmdShell executes a command via WinRS (cmd.exe) instead of PowerShell.
+// // This is faster for simple commands as it avoids PSRP protocol overhead.
+// //
+// // The command string is passed directly to cmd.exe. For example:
+// //
+// //	result, err := c.ExecuteCmdShell(ctx, "dir /b C:\\Windows")
+// func (c *Client) ExecuteCmdShell(ctx context.Context, command string, args string, options ...winrs.Option) (*CmdResult, error) {
+// 	c.logInfo("ExecuteCmdShell called: '%s'", sanitizeScriptForLogging(command))
+
+// 	// Security Logging (NIST SP 800-92) - Log command attempt
+// 	if c.securityLogger != nil {
+// 		c.securityLogger.LogCommand("winrs_execute", OutcomeAttempt, SeverityInfo, map[string]any{
+// 			"command": sanitizeScriptForLogging(command),
+// 			"mode":    "winrs",
+// 		})
+// 	}
+
+// 	// Ensure we have a WSMan client
+// 	if c.wsman == nil {
+// 		if c.securityLogger != nil {
+// 			c.securityLogger.LogCommand("winrs_shell_execute", OutcomeFailure, SeverityError, map[string]any{
+// 				"error": "wsman client not initialized",
+// 			})
+// 		}
+// 		return nil, fmt.Errorf("winrs: wsman client not initialized - call ConnectWSManOnly() first")
+// 	}
+
+// 	// Create a temporary WinRS shell
+// 	shell, err := winrs.NewShell(ctx, c.wsman, options...)
+// 	if err != nil {
+// 		if c.securityLogger != nil {
+// 			c.securityLogger.LogCommand("winrs_shell_execute", OutcomeFailure, SeverityError, map[string]any{
+// 				"error": err.Error(),
+// 				"stage": "create_shell",
+// 			})
+// 		}
+// 		return nil, fmt.Errorf("winrs_shell: create shell: %w", err)
+// 	}
+// 	defer func() {
+// 		if closeErr := shell.Close(ctx); closeErr != nil {
+// 			c.logWarn("winrs_shell: failed to close shell: %v", closeErr)
+// 		}
+// 	}()
+
+// 	// Run the command through cmd.exe /c
+// 	proc, err := shell.Run(ctx, "cmd.exe", "/c", command)
+// 	if err != nil {
+// 		if c.securityLogger != nil {
+// 			c.securityLogger.LogCommand("winrs_shell_execute", OutcomeFailure, SeverityError, map[string]any{
+// 				"error": err.Error(),
+// 				"stage": "run_command",
+// 			})
+// 		}
+// 		return nil, fmt.Errorf("winrs_shell: run command: %w", err)
+// 	}
+
+// 	// Security Logging - Log command completion
+// 	if c.securityLogger != nil {
+// 		outcome := OutcomeSuccess
+// 		severity := SeverityInfo
+// 		if proc.ExitCode() != 0 {
+// 			outcome = OutcomeFailure
+// 			severity = SeverityWarning
+// 		}
+// 		c.securityLogger.LogCommand("winrs_shell_complete", outcome, severity, map[string]any{
+// 			"exit_code": proc.ExitCode(),
+// 			"mode":      "winrs",
+// 		})
+// 	}
+
+// 	return &CmdResult{
+// 		Stdout:   string(proc.Stdout()),
+// 		Stderr:   string(proc.Stderr()),
+// 		ExitCode: proc.ExitCode(),
+// 	}, nil
+// }
 
 // ConnectWSManOnly initializes the WSMan transport without creating a PSRP runspace.
 // Use this for WinRS (cmd.exe) operations that don't need PowerShell.
@@ -153,81 +230,80 @@ func (r *CmdStreamResult) Close(ctx context.Context) error {
 	return nil
 }
 
+// func (c *Client) ExecuteCmdStream(ctx context.Context, command string) (*CmdStreamResult, error) {
+// 	c.logInfo("ExecuteCmdStream called: '%s'", sanitizeScriptForLogging(command))
 
-func (c *Client) ExecuteCmdStream(ctx context.Context, command string) (*CmdStreamResult, error) {
-	c.logInfo("ExecuteCmdStream called: '%s'", sanitizeScriptForLogging(command))
+// 	// Ensure we have a WSMan client
+// 	if c.wsman == nil {
+// 		return nil, fmt.Errorf("winrs: wsman client not initialized - call Connect() first")
+// 	}
 
-	// Ensure we have a WSMan client
-	if c.wsman == nil {
-		return nil, fmt.Errorf("winrs: wsman client not initialized - call Connect() first")
-	}
+// 	// Create a WinRS shell (caller is responsible for closing via CmdStreamResult.Close)
+// 	shell, err := winrs.NewShell(ctx, c.wsman)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("winrs: create shell: %w", err)
+// 	}
 
-	// Create a WinRS shell (caller is responsible for closing via CmdStreamResult.Close)
-	shell, err := winrs.NewShell(ctx, c.wsman)
-	if err != nil {
-		return nil, fmt.Errorf("winrs: create shell: %w", err)
-	}
+// 	// Start the command
+// 	proc, err := shell.Start(ctx, "cmd.exe", "/c", command)
+// 	if err != nil {
+// 		if closeErr := shell.Close(ctx); closeErr != nil {
+// 			c.logWarn("winrs: failed to close shell after start error: %v", closeErr)
+// 		}
+// 		return nil, fmt.Errorf("winrs: start command: %w", err)
+// 	}
 
-	// Start the command
-	proc, err := shell.Start(ctx, "cmd.exe", "/c", command)
-	if err != nil {
-		if closeErr := shell.Close(ctx); closeErr != nil {
-			c.logWarn("winrs: failed to close shell after start error: %v", closeErr)
-		}
-		return nil, fmt.Errorf("winrs: start command: %w", err)
-	}
+// 	// Create output channels
+// 	stdoutCh := make(chan []byte, 16)
+// 	stderrCh := make(chan []byte, 16)
+// 	doneCh := make(chan struct{})
 
-	// Create output channels
-	stdoutCh := make(chan []byte, 16)
-	stderrCh := make(chan []byte, 16)
-	doneCh := make(chan struct{})
+// 	// Stream output in a goroutine
+// 	go func() {
+// 		defer close(stdoutCh)
+// 		defer close(stderrCh)
+// 		defer close(doneCh)
+// 		// Ensure shell is cleaned up when goroutine exits (prevents memory leak)
+// 		defer func() {
+// 			if closeErr := shell.Close(context.Background()); closeErr != nil {
+// 				c.logWarn("winrs: failed to close shell on goroutine exit: %v", closeErr)
+// 			}
+// 		}()
 
-	// Stream output in a goroutine
-	go func() {
-		defer close(stdoutCh)
-		defer close(stderrCh)
-		defer close(doneCh)
-		// Ensure shell is cleaned up when goroutine exits (prevents memory leak)
-		defer func() {
-			if closeErr := shell.Close(context.Background()); closeErr != nil {
-				c.logWarn("winrs: failed to close shell on goroutine exit: %v", closeErr)
-			}
-		}()
+// 		for {
+// 			// Check context cancellation before each receive
+// 			select {
+// 			case <-ctx.Done():
+// 				c.logInfo("winrs: context canceled, closing stream")
+// 				return
+// 			default:
+// 			}
 
-		for {
-			// Check context cancellation before each receive
-			select {
-			case <-ctx.Done():
-				c.logInfo("winrs: context canceled, closing stream")
-				return
-			default:
-			}
+// 			result, err := c.wsman.Receive(ctx, shell.EPR(), proc.CommandID())
+// 			if err != nil {
+// 				c.logWarn("winrs: receive error: %v", err)
+// 				return
+// 			}
 
-			result, err := c.wsman.Receive(ctx, shell.EPR(), proc.CommandID())
-			if err != nil {
-				c.logWarn("winrs: receive error: %v", err)
-				return
-			}
+// 			if len(result.Stdout) > 0 {
+// 				stdoutCh <- result.Stdout
+// 			}
+// 			if len(result.Stderr) > 0 {
+// 				stderrCh <- result.Stderr
+// 			}
 
-			if len(result.Stdout) > 0 {
-				stdoutCh <- result.Stdout
-			}
-			if len(result.Stderr) > 0 {
-				stderrCh <- result.Stderr
-			}
+// 			if result.Done {
+// 				proc.SetResult(result)
+// 				return
+// 			}
+// 		}
+// 	}()
 
-			if result.Done {
-				proc.SetResult(result)
-				return
-			}
-		}
-	}()
-
-	return &CmdStreamResult{
-		Stdout: stdoutCh,
-		Stderr: stderrCh,
-		Done:   doneCh,
-		shell:  shell,
-		proc:   proc,
-	}, nil
-}
+// 	return &CmdStreamResult{
+// 		Stdout: stdoutCh,
+// 		Stderr: stderrCh,
+// 		Done:   doneCh,
+// 		shell:  shell,
+// 		proc:   proc,
+// 	}, nil
+// }

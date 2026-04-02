@@ -1,5 +1,6 @@
 # go-psrp
 
+## THIS IS OUT OF DATE - FIXING SOON
 <!-- markdownlint-disable MD013 -->
 [![Go Reference](https://pkg.go.dev/badge/github.com/investigato/go-psrp.svg)](https://pkg.go.dev/github.com/investigato/go-psrp)
 [![Go Report Card](https://goreportcard.com/badge/github.com/investigato/go-psrp)](https://goreportcard.com/report/github.com/investigato/go-psrp)
@@ -11,8 +12,8 @@ transport layers.
 
 ## Overview
 
-This library builds on [go-psrpcore](https://github.com/investigato/go-psrpcore) by
-adding transport layers, making it ready for production PowerShell remoting.
+This library builds on [go-psrpcore](https://github.com/investigato/go-psrpcore) by 
+sadding transport layers, making it ready for production PowerShell remoting.
 
 <!-- markdownlint-disable MD013 -->
 ```text
@@ -32,9 +33,7 @@ adding transport layers, making it ready for production PowerShell remoting.
 │  ┌─────────────────────────────────────────────────┐    │
 │  │  wsman/        WSMan/WinRM transport            │    │
 │  └─────────────────────────────────────────────────┘    │
-│  ┌─────────────────────────────────────────────────┐    │
-│  │  hvsock/      Hyper-V Socket (PowerShell Direct)│    │
-│  └─────────────────────────────────────────────────┘    │
+│                                                         │
 └─────────────────────────────────────────────────────────┘
                           │
                           ▼
@@ -49,7 +48,6 @@ adding transport layers, making it ready for production PowerShell remoting.
 
 - **Multiple Transports**
   - **WSMan/WinRM** - HTTP/HTTPS with SOAP (standard remote PowerShell)
-  - **HVSocket** - PowerShell Direct to Hyper-V VMs (Windows only)
 - **Authentication**
   - Basic, NTLM (explicit credentials)
     - Supports **Extended Protection (Channel Binding Tokens)** for NTLM

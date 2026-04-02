@@ -58,15 +58,16 @@ type TransportType int
 const (
 	// TransportWSMan uses WSMan (HTTP/HTTPS) transport.
 	TransportWSMan TransportType = iota
-	// TransportHvSocket uses Hyper-V Socket (PowerShell Direct) transport.
-	TransportHvSocket
 )
 
 // Transport name string constants (for serialization/logging)
 const (
-	TransportNameWSMan    = "wsman"
-	TransportNameHvSocket = "hvsocket"
-	TransportNameUnknown  = "unknown"
+	TransportNameWSMan   = "wsman"
+	TransportNameUnknown = "unknown"
+)
+
+const (
+	logLevelDebug = "debug"
 )
 
 // String returns a string representation of the transport type.
@@ -74,8 +75,6 @@ func (t TransportType) String() string {
 	switch t {
 	case TransportWSMan:
 		return TransportNameWSMan
-	case TransportHvSocket:
-		return TransportNameHvSocket
 	default:
 		return TransportNameUnknown
 	}
@@ -197,6 +196,8 @@ type Config struct {
 	// Password for authentication.
 	Password string
 
+	// NTHash for PtH Authentication
+	NTHash []byte
 	// Domain for NTLM authentication.
 	Domain string
 
@@ -217,9 +218,6 @@ type Config struct {
 
 	// Transport specifies the transport mechanism (WSMan or HvSocket).
 	Transport TransportType
-
-	// VMID is the Hyper-V VM GUID (Required for TransportHvSocket).
-	VMID string
 
 	// ConfigurationName is the PowerShell configuration name (e.g., "Microsoft.Exchange").
 	// If empty, defaults to "Microsoft.PowerShell".
@@ -301,32 +299,12 @@ func (c Config) LogValue() slog.Value {
 		slog.String("Password", "********"), // REDACTED
 		slog.String("Domain", c.Domain),
 		slog.String("Transport", c.Transport.String()),
-		slog.String("VMID", c.VMID),
 		slog.String("ConfigurationName", c.ConfigurationName),
 		slog.String("ResourceURI", c.ResourceURI),
 		slog.Int("MaxRunspaces", c.MaxRunspaces),
 	}
 
 	return slog.GroupValue(attrs...)
-}
-
-// IsHvSocket returns true if the client is using the HvSocket transport.
-// It checks both the configuration and the active backend implementation.
-func (c *Client) IsHvSocket() bool {
-	// Check config first
-	if c.config.Transport == TransportHvSocket {
-		return true
-	}
-
-	// Check backend type if initialized
-	// This handles cases where config might be default (WSMan) but backend is explicitly HvSocket
-	// (e.g. during certain reconnection or test scenarios)
-	if c.backend != nil {
-		_, ok := c.backend.(*powershell.HvSocketBackend)
-		return ok
-	}
-
-	return false
 }
 
 // CircuitBreakerPolicy configures the failure threshold and recovery timeout.
@@ -403,8 +381,8 @@ func (c *Config) Validate() error {
 
 	// Password required for Basic, NTLM, and Kerberos/Negotiate without ccache
 	// Exception: SSO mode (empty username on Windows) doesn't need password
-	if c.Password == "" && c.Username != "" {
-		return errors.New("password is required")
+	if c.Password == "" && len(c.NTHash) == 0 && c.Username != "" {
+		return errors.New("either password or NTHash is required")
 	}
 	return nil
 }
@@ -456,7 +434,7 @@ type Client struct {
 
 	// Logging
 	slogLogger *slog.Logger
-
+	logLevel   string
 	// File-based recovery state
 	outputFiles map[string]string // Maps PipelineID to remote file path
 
@@ -524,12 +502,13 @@ func (c *Client) ensureLogger() {
 	}
 
 	var level slog.Level
+
 	envLevel := os.Getenv("PSRP_LOG_LEVEL")
 	envDebug := os.Getenv("PSRP_DEBUG")
 
 	if envLevel != "" {
 		switch strings.ToLower(envLevel) {
-		case "debug":
+		case logLevelDebug:
 			level = slog.LevelDebug
 		case "info":
 			level = slog.LevelInfo
@@ -551,17 +530,10 @@ func (c *Client) ensureLogger() {
 		return
 	}
 
-	// Use default logger if already configured (respects -quiet, -logfile, etc.)
-	// Only create fallback if default has no handler configured
-	defaultLogger := slog.Default()
-	if defaultLogger.Enabled(context.Background(), level) {
-		c.slogLogger = defaultLogger
-	} else {
-		// Fallback: create minimal stderr logger (for library consumers without CLI)
-		c.slogLogger = slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
-			Level: level,
-		}))
-	}
+	c.slogLogger = slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+		Level: level,
+	}))
+
 }
 
 // logfLocked logs a debug message assuming the client lock is already held.
@@ -754,108 +726,6 @@ func (c *Client) ReconnectSession(ctx context.Context, state *SessionState) erro
 	// 2. Initialize Backend based on Transport
 	c.logInfoLocked("ReconnectSession: Restoring transport %s", state.Transport)
 	switch state.Transport {
-	case TransportNameHvSocket:
-		// Update config to match state
-		c.config.Transport = TransportHvSocket
-
-		vmIDStr := c.config.VMID
-		if vmIDStr == "" {
-			vmIDStr = state.VMID
-			c.config.VMID = vmIDStr // Sync config
-		}
-		if vmIDStr == "" {
-			return fmt.Errorf("missing vmid in both config and state")
-		}
-		vmID, err := uuid.Parse(vmIDStr)
-		if err != nil {
-			return fmt.Errorf("parse vmid: %w", err)
-		}
-
-		serviceID := c.config.ConfigurationName
-		if serviceID == "" {
-			serviceID = state.ServiceID
-			c.config.ConfigurationName = serviceID // Sync config
-		}
-
-		backend := powershell.NewHvSocketBackend(
-			vmID,
-			c.config.Domain,
-			c.config.Username,
-			c.config.Password,
-			serviceID,
-			c.poolID,
-		)
-		c.backend = backend
-
-		// Connect backend to establish transport
-		if err := backend.Connect(ctx); err != nil {
-			return fmt.Errorf("connect socket: %w", err)
-		}
-
-		// initialize PSRP pool if needed
-		if c.psrpPool == nil {
-			transport := backend.Transport()
-			c.psrpPool = runspace.New(transport, c.poolID)
-			// Hook up security logging from protocol layer
-			c.psrpPool.SetSecurityEventCallback(func(event string, details map[string]any) {
-				if c.securityLogger != nil {
-					subtype, ok := details["subtype"].(string)
-					if !ok {
-						subtype = "unknown"
-					}
-					outcome, ok := details["outcome"].(string)
-					if !ok {
-						outcome = "unknown"
-					}
-					severity := SeverityInfo
-					if outcome == "failure" {
-						severity = SeverityError
-					}
-					c.securityLogger.LogEvent(event, subtype, severity, outcome, details)
-				}
-			})
-			c.ensureLogger()
-			if c.slogLogger != nil {
-				_ = c.psrpPool.SetSlogLogger(c.slogLogger) //nolint:errcheck // Best-effort logging config
-			}
-		}
-
-		// Sync message ID (critical for determining next PSRP message ID)
-		// #nosec G115 -- callID is always positive, starts at 0
-		c.psrpPool.SetMessageID(uint64(c.callID.Current()))
-
-		// Check if we are doing file-based recovery (OutputPaths present)
-		// If so, we can't Reattach (persistence unsupported), so we Start New Session (Open).
-		if len(state.OutputPaths) > 0 {
-			// Start fresh session to read files
-			// Note: pool.Open sends RUNSPACEPOOL_INIT
-			if err := c.psrpPool.Open(ctx); err != nil {
-				return fmt.Errorf("open new session for recovery: %w", err)
-			}
-		} else {
-			// Detailed Reattach (performs PSRP handshake via pool.Connect)
-			if err := backend.Reattach(ctx, c.psrpPool, ""); err != nil {
-				return fmt.Errorf("backend reattach: %w", err)
-			}
-		}
-
-		c.connected = true
-		if c.callID == nil {
-			c.callID = newCallIDManager()
-		}
-
-		if c.semaphore == nil {
-			maxRunspaces := c.config.MaxRunspaces
-			if maxRunspaces == 0 && c.config.MaxConcurrentCommands > 0 {
-				maxRunspaces = c.config.MaxConcurrentCommands
-			}
-			if maxRunspaces <= 0 {
-				maxRunspaces = 1 // Default safe
-			}
-			c.semaphore = newPoolSemaphore(maxRunspaces, c.config.MaxQueueSize, c.config.Timeout)
-		}
-
-		return nil
 	case "wsman", "": // Default to WSMan
 		if c.wsman == nil {
 			return fmt.Errorf("wsman client not initialized")
@@ -943,16 +813,9 @@ func (c *Client) SaveState(path string) error {
 		OutputPaths: c.outputFiles, // Save file recovery paths
 	}
 
-	// Transport specific info
-	if c.config.Transport == TransportHvSocket {
-		state.Transport = TransportNameHvSocket
-		state.VMID = c.config.VMID
-		state.ServiceID = c.config.ConfigurationName // Using config name as ServiceID proxy/context
-	} else {
-		state.Transport = TransportNameWSMan
-		if c.backend != nil {
-			state.ShellID = c.backend.ShellID()
-		}
+	state.Transport = TransportNameWSMan
+	if c.backend != nil {
+		state.ShellID = c.backend.ShellID()
 	}
 
 	// Get active pipelines from PSRP pool if available
@@ -1000,7 +863,7 @@ func LoadState(path string) (*SessionState, error) {
 }
 
 // New creates a new PSRP client.
-func New(hostname string, cfg Config) (*Client, error) {
+func New(hostname string, cfg Config, logLevel string) (*Client, error) {
 	if err := cfg.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid config: %w", err)
 	}
@@ -1028,6 +891,7 @@ func New(hostname string, cfg Config) (*Client, error) {
 	creds := auth.Credentials{
 		Username: cfg.Username,
 		Password: cfg.Password,
+		NTHash:   cfg.NTHash,
 		Domain:   cfg.Domain,
 	}
 
@@ -1098,26 +962,6 @@ func New(hostname string, cfg Config) (*Client, error) {
 	tr.Client().Transport = newTransport
 
 	switch cfg.Transport {
-	case TransportHvSocket:
-		// Convert String VMID to UUID
-		if _, err := uuid.Parse(cfg.VMID); err != nil {
-			return nil, fmt.Errorf("invalid vmid: %w", err)
-		}
-
-		// For HvSocket, we don't need the HTTP transport or WSMan client.
-		return &Client{
-			hostname: hostname,
-			config:   cfg,
-			endpoint: "",
-			// semaphore initialized in Connect/Reconnect to allow state recovery adjustment if needed?
-			// But Execute checks for it. Better initialize here if possible, or lazy init.
-			// Let's initialize here with safe defaults.
-			semaphore:      newPoolSemaphore(cfg.MaxRunspaces, cfg.MaxQueueSize, cfg.Timeout),
-			outputFiles:    make(map[string]string),
-			callID:         newCallIDManager(),
-			circuitBreaker: NewCircuitBreaker(cfg.CircuitBreaker),
-		}, nil
-
 	default: // WSMan
 		// ... existing WSMan setup ...
 		return &Client{
@@ -1126,6 +970,7 @@ func New(hostname string, cfg Config) (*Client, error) {
 			endpoint:       endpoint,
 			transport:      tr,
 			wsman:          wsman.NewClient(endpoint, tr),
+			logLevel:       logLevel,
 			semaphore:      newPoolSemaphore(cfg.MaxRunspaces, cfg.MaxQueueSize, cfg.Timeout),
 			outputFiles:    make(map[string]string),
 			callID:         newCallIDManager(),
@@ -1143,7 +988,7 @@ func New(hostname string, cfg Config) (*Client, error) {
 // This ensures each worker runs in its own RunspacePool with its own Authentication Context,
 // avoiding WinRM "Shared Shell" errors and Auth Loop race conditions.
 func (c *Client) CreateWorker() (*Client, error) {
-	return New(c.hostname, c.config)
+	return New(c.hostname, c.config, c.logLevel)
 }
 
 // CloseIdleConnections closes any idle connections in the underlying transport.
@@ -1208,9 +1053,7 @@ func (c *Client) connectInternal(ctx context.Context) error {
 
 	// Initialize security logger (NIST SP 800-92)
 	target := c.hostname
-	if c.config.Transport == TransportHvSocket {
-		target = "hvsocket://" + c.config.VMID
-	}
+
 	c.securityLogger = NewSecurityLogger(c.slogLogger, c.config.Username, target)
 	c.securityLogger.LogConnection(SubtypeConnEstablished, OutcomeSuccess, SeverityInfo, map[string]any{
 		"pool_id":   c.poolID.String(),
@@ -1225,20 +1068,6 @@ func (c *Client) connectInternal(ctx context.Context) error {
 		}
 	} else {
 		switch c.config.Transport {
-		case TransportHvSocket:
-			// Convert VMID
-			vmID, _ := uuid.Parse(c.config.VMID) // Validated in New/Validate but parse again or store in Client?
-			// New was creating Client. Config has string.
-			// We'll parse again.
-
-			c.backend = powershell.NewHvSocketBackend(
-				vmID,
-				c.config.Domain,
-				c.config.Username,
-				c.config.Password,
-				c.config.ConfigurationName,
-				c.poolID,
-			)
 		case TransportWSMan:
 			// Ensure wsman client is set (it should be from New)
 			if c.wsman == nil {
@@ -1296,7 +1125,7 @@ func (c *Client) connectInternal(ctx context.Context) error {
 	// Propagate logger if configured
 	if c.slogLogger != nil {
 		_ = c.psrpPool.SetSlogLogger(c.slogLogger) //nolint:errcheck // Best-effort logging config
-	} else if os.Getenv("PSRP_DEBUG") != "" || os.Getenv("PSRP_LOG_LEVEL") != "" {
+	} else if c.logLevel == logLevelDebug || os.Getenv("PSRP_DEBUG") != "" || os.Getenv("PSRP_LOG_LEVEL") != "" {
 		// Enable debug logging if PSRP_DEBUG is set (legacy fallback) or PSRP_LOG_LEVEL is set
 		c.psrpPool.EnableDebugLogging()
 	}
@@ -2068,14 +1897,6 @@ func (c *Client) startPipeline(ctx context.Context, script string) (*pipeline.Pi
 // for output. Returns the CommandID (PipelineID) for later recovery of output.
 // This is useful for starting long-running commands and then disconnecting.
 func (c *Client) ExecuteAsync(ctx context.Context, script string) (string, error) {
-	c.mu.Lock()
-	transportType := c.config.Transport
-	c.mu.Unlock()
-
-	if transportType == TransportHvSocket {
-		return c.executeAsyncHvSocket(ctx, script)
-	}
-
 	// Standard (WSMan) Async Execution
 	// We start the pipeline but do NOT start receiving loop, allowing output to buffer on server
 	// or simply be ignored until later recovery/reconnection.
@@ -2361,8 +2182,6 @@ func (c *Client) Reconnect(ctx context.Context, shellID string) error {
 	// 1. Ensure backend is initialized (but not opened)
 	if c.backend == nil {
 		switch c.config.Transport {
-		case TransportHvSocket:
-			return fmt.Errorf("reconnect not supported on HvSocket transport")
 		default: // WSMan
 			if c.wsman == nil {
 				return fmt.Errorf("wsman client not initialized")
@@ -2390,7 +2209,7 @@ func (c *Client) Reconnect(ctx context.Context, shellID string) error {
 	// Configure logging
 	if c.slogLogger != nil {
 		_ = c.psrpPool.SetSlogLogger(c.slogLogger) //nolint:errcheck // Best-effort logging config
-	} else if os.Getenv("PSRP_DEBUG") != "" || os.Getenv("PSRP_LOG_LEVEL") != "" {
+	} else if c.logLevel == logLevelDebug || os.Getenv("PSRP_DEBUG") != "" || os.Getenv("PSRP_LOG_LEVEL") != "" {
 		c.psrpPool.EnableDebugLogging()
 	}
 

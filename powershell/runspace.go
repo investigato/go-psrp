@@ -324,12 +324,7 @@ func (b *WSManBackend) PreparePipeline(ctx context.Context, p *pipeline.Pipeline
 		return nil, nil, fmt.Errorf("create wsman command: %w", err)
 	}
 
-	// 2. Register the pipeline ID → WSMan commandID mapping on the pool transport.
-	// This enables MultiplexedTransport.SendPipelineData to route PIPELINE_INPUT
-	// messages with the correct CommandId attribute in the WSMan <rsp:Stream> element.
-	b.transport.RegisterPipeline(p.ID(), returnedID)
-
-	// 3. Create a per-pipeline transport for receiving
+	// Create a per-pipeline transport for receiving
 	// Each pipeline gets its own transport with its specific commandID
 	// This allows concurrent pipelines to receive independently
 	pipelineTransport := NewWSManTransport(b.client, b.epr, returnedID)
@@ -337,10 +332,7 @@ func (b *WSManBackend) PreparePipeline(ctx context.Context, p *pipeline.Pipeline
 
 	// 4. Setup cleanup function
 	cleanup := func() {
-		// Remove the pipeline mapping first
-		b.transport.UnregisterPipeline(p.ID())
-
-		// Terminate the command on WSMan side.
+			// Terminate the command on WSMan side.
 		// Derive from ctx so that if the parent is cancelled,
 		// we don't wait the full timeout.
 		cleanCtx, cancel := context.WithTimeout(ctx, 10*time.Second)

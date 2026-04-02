@@ -46,7 +46,7 @@ func (a *NTLMAuth) Name() string {
 // and a custom injector to add CBT support if enabled.
 func (a *NTLMAuth) Transport(base http.RoundTripper) (http.RoundTripper, error) {
 	ntlmClient, err := ntlmSsp.NewClient(
-		ntlmSsp.SetUserInfo(a.creds.Username, a.creds.Password),
+		ntlmSsp.SetUserInfo(a.creds.Username, a.creds.Password, a.creds.NTHash),
 		ntlmSsp.SetDomain(a.creds.Domain),
 	)
 	if err != nil {
@@ -56,7 +56,7 @@ func (a *NTLMAuth) Transport(base http.RoundTripper) (http.RoundTripper, error) 
 		&http.Client{Transport: base},
 		ntlmClient,
 		ntlmHttp.SendCBT(a.enableCBT),
-		ntlmHttp.Encryption(true),
+		ntlmHttp.Encryption(false),
 	)
 	if err != nil {
 		return nil, err

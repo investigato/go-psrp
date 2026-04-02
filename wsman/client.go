@@ -85,7 +85,7 @@ func (c *Client) Create(ctx context.Context, options map[string]string, creation
 	for name, value := range options {
 		if name == "protocolversion" {
 			env.WithOptionMustComply(name, value)
-		} else if name == "IdleTimeout" {
+		} else if name == "IdleTimeout" || name == "WorkingDirectory" {
 			//idleTimeout = value
 			// Do not add as a header option, handled in body
 		} else {
@@ -103,9 +103,13 @@ func (c *Client) Create(ctx context.Context, options map[string]string, creation
 		shellID = strings.ToUpper(uuid.New().String())
 	}
 	var shellBody string
-
+	var workingDir string
 	// switch on ResourceURI, then if CreationXML is provided, use PSRP format, otherwise use basic WinRS format
-
+	if options["WorkingDirectory"] != "" {
+		workingDir = `<rsp:WorkingDirectory>` + options["WorkingDirectory"] + `</rsp:WorkingDirectory>`
+	} else {
+		workingDir = ``
+	}
 	switch resourceURI {
 	case ResourceURIPowerShell:
 		switch creationXML {
@@ -116,8 +120,7 @@ func (c *Client) Create(ctx context.Context, options map[string]string, creation
 		}
 	default:
 		// Basic WinRS shell
-		shellBody = `<rsp:Shell ShellId="` + shellID + `" xmlns:rsp="` + NsShell + `"><rsp:InputStreams>stdin</rsp:InputStreams>  <rsp:OutputStreams>stdout stderr</rsp:OutputStreams></rsp:Shell>`
-
+		shellBody = `<rsp:Shell ShellId="` + shellID + `" xmlns:rsp="` + NsShell + `">` + workingDir + `<rsp:InputStreams>stdin</rsp:InputStreams><rsp:OutputStreams>stdout stderr</rsp:OutputStreams></rsp:Shell>`
 	}
 
 	env.WithBody([]byte(shellBody))
@@ -163,7 +166,7 @@ func (c *Client) Command(ctx context.Context, epr *EndpointReference, commandID,
 		WithLocale("en-US").
 		WithDataLocale("en-US").
 		WithMaxEnvelopeSize(512000).
-		WithOperationTimeout("PT60S").
+		WithOperationTimeout("PT30S").
 		WithShellNamespace()
 
 	// Add all selectors
@@ -174,7 +177,10 @@ func (c *Client) Command(ctx context.Context, epr *EndpointReference, commandID,
 	// Build CommandLine - format differs between PSRP and WinRS
 	var commandLine []byte
 	isWinRS := epr.ResourceURI == ResourceURIWinRS
-
+	if isWinRS {
+		env.WithOption("WINRS_CONSOLEMODE_STDIN", "TRUE").
+			WithOption("WINRS_SKIP_CMD_SHELL", "TRUE")
+	}
 	if isWinRS {
 		// WinRS: commandID = executable, arguments = cmd args
 		// Generate a new GUID for the command ID
