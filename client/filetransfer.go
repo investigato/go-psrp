@@ -477,8 +477,8 @@ func (c *Client) FetchFile(ctx context.Context, remotePath, localPath string, op
 		if createErr != nil {
 			return fmt.Errorf("failed to create local file: %w", createErr)
 		}
-		if err := file.Close(); err != nil {
-			return fmt.Errorf("failed to close local file: %w", err)
+		if closeErr := file.Close(); closeErr != nil {
+			return fmt.Errorf("failed to close local file: %w", closeErr)
 		}
 		c.logInfo("FetchFile: Created empty file %s", localPath)
 		return nil
@@ -535,6 +535,18 @@ func (c *Client) FetchFile(ctx context.Context, remotePath, localPath string, op
 	}
 
 	c.logInfo("FetchFile: Downloading %d chunks (%d bytes)", numChunks, totalSize)
+
+	// Write to a temporary file first, then copy to final destination to prevent partial file issues
+	// in case of failure. This also allows us to write chunks in parallel in the future.
+	tempPath := fmt.Sprintf("%s.part", localPath)
+	tempFile, tempErr := os.OpenFile(tempPath, os.O_CREATE|os.O_WRONLY, 0600) // #nosec G304 -- temp file in same dir
+	if tempErr != nil {
+		return fmt.Errorf("failed to create temp file: %w", tempErr)
+	}
+	defer func() {
+		tempFile.Close()
+		os.Remove(tempPath) // Clean up temp file
+	}()
 
 	// Step 2: Download chunks sequentially
 	for i := int64(0); i < numChunks; i++ {
@@ -604,24 +616,13 @@ func (c *Client) FetchFile(ctx context.Context, remotePath, localPath string, op
 			return fmt.Errorf("failed to decode chunk %d: %w", i, decodeErr)
 		}
 
-		// Write to a temporary file first, then copy to final destination to prevent partial file issues
-		// in case of failure. This also allows us to write chunks in parallel in the future.
-		tempPath := fmt.Sprintf("%s.part", localPath)
-		tempFile, tempErr := os.OpenFile(tempPath, os.O_CREATE|os.O_WRONLY, 0600) // #nosec G304 -- temp file in same dir
-		if tempErr != nil {
-			return fmt.Errorf("failed to create temp file for chunk %d: %w", i, tempErr)
-		}
-
 		if _, seekErr := tempFile.Seek(offset, io.SeekStart); seekErr != nil {
 			_ = tempFile.Close()
 			return fmt.Errorf("failed to seek temp file for chunk %d: %w", i, seekErr)
 		}
 		if _, writeErr := tempFile.Write(chunkData); writeErr != nil {
 			_ = tempFile.Close()
-			return fmt.Errorf("failed to write chunk %d: %w", i, writeErr)
-		}
-		if closeErr := tempFile.Close(); closeErr != nil {
-			return fmt.Errorf("failed to close temp file for chunk %d: %w", i, closeErr)
+			return fmt.Errorf("failed to write chunk %d to temp file: %w", i, writeErr)
 		}
 
 		// Update hash if verification is enabled
@@ -691,7 +692,14 @@ func (c *Client) FetchFile(ctx context.Context, remotePath, localPath string, op
 
 		c.logInfo("FetchFile: Checksum verified (SHA256: %s)", localHash)
 	}
-
+	// Step 4: Move temp file to final destination
+	if err := os.Rename(tempPath, localPath); err != nil {
+		return fmt.Errorf("failed to move temp file to final destination: %w", err)
+	}
+	// make sure tempFile is closed before removing temp file in defer
+	if err := tempFile.Close(); err != nil {
+		return fmt.Errorf("failed to close temp file: %w", err)
+	}
 	// Security Event: Log completion
 	c.logSecurityEvent("FILE_TRANSFER_COMPLETE", map[string]interface{}{
 		"operation":      "FetchFile",
