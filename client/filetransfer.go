@@ -122,7 +122,7 @@ func WithNoOverwrite(noOverwrite bool) FileTransferOption {
 // For HvSocket, use DefaultFileTransferOptionsForTransport(TransportHvSocket).
 func DefaultFileTransferOptions() FileTransferOptions {
 	return FileTransferOptions{
-		ChunkSize:      256 * 1024, // 256KB safe for 500KB envelope (341KB after Base64)
+		ChunkSize:      65536, // 64KB safe for 500KB envelope (85KB after Base64)
 		MaxConcurrency: 4,
 		UseCompression: false,
 		VerifyChecksum: false,
@@ -541,7 +541,7 @@ func (c *Client) FetchFile(ctx context.Context, remotePath, localPath string, op
 		// Check for context cancellation
 		select {
 		case <-ctx.Done():
-			return fmt.Errorf("transfer cancelled: %w", ctx.Err())
+			return fmt.Errorf("transfer canceled: %w", ctx.Err())
 		default:
 		}
 
@@ -604,9 +604,24 @@ func (c *Client) FetchFile(ctx context.Context, remotePath, localPath string, op
 			return fmt.Errorf("failed to decode chunk %d: %w", i, decodeErr)
 		}
 
-		// Write to local file
-		if _, writeErr := file.Write(chunkData); writeErr != nil {
+		// Write to a temporary file first, then copy to final destination to prevent partial file issues
+		// in case of failure. This also allows us to write chunks in parallel in the future.
+		tempPath := fmt.Sprintf("%s.part", localPath)
+		tempFile, tempErr := os.OpenFile(tempPath, os.O_CREATE|os.O_WRONLY, 0600) // #nosec G304 -- temp file in same dir
+		if tempErr != nil {
+			return fmt.Errorf("failed to create temp file for chunk %d: %w", i, tempErr)
+		}
+
+		if _, seekErr := tempFile.Seek(offset, io.SeekStart); seekErr != nil {
+			_ = tempFile.Close()
+			return fmt.Errorf("failed to seek temp file for chunk %d: %w", i, seekErr)
+		}
+		if _, writeErr := tempFile.Write(chunkData); writeErr != nil {
+			_ = tempFile.Close()
 			return fmt.Errorf("failed to write chunk %d: %w", i, writeErr)
+		}
+		if closeErr := tempFile.Close(); closeErr != nil {
+			return fmt.Errorf("failed to close temp file for chunk %d: %w", i, closeErr)
 		}
 
 		// Update hash if verification is enabled

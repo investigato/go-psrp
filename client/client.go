@@ -1557,7 +1557,7 @@ func (c *Client) Execute(ctx context.Context, script string) (*Result, error) {
 		retryPolicy = c.config.Retry
 	} else {
 		// Legacy: Use reconnect config for backward compat
-		maxAttempts = 1
+		maxAttempts = 5
 		if c.config.Reconnect.Enabled && c.config.Reconnect.MaxAttempts > 0 {
 			maxAttempts = c.config.Reconnect.MaxAttempts
 		}
