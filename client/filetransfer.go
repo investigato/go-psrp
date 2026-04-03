@@ -579,7 +579,7 @@ func (c *Client) FetchFile(ctx context.Context, remotePath, localPath string, op
 				"chunk":     i,
 				"error":     chunkErr.Error(),
 			})
-			return fmt.Errorf("failed to download chunk %d/%d: remote operation error", i+1, numChunks)
+			return fmt.Errorf("failed to download chunk %d/%d: remote operation error: %w", i+1, numChunks, chunkErr)
 		}
 
 		// Extract Base64 string from output
