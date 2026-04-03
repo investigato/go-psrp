@@ -446,8 +446,8 @@ func (c *Client) FetchFile(ctx context.Context, remotePath, localPath string, op
 			"phase":     "get_size",
 			"error":     err.Error(),
 		})
-		if strings.Contains(err.Error(), "Cannot find path") {
-			return fmt.Errorf("remote file not found")
+		if strings.Contains(err.Error(), "Cannot find path") || strings.Contains(err.Error(), "not find item") {
+			return fmt.Errorf("remote file not found: %s", remotePath)
 		}
 		return fmt.Errorf("failed to get remote file size: remote operation error")
 	}
